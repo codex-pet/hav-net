@@ -184,6 +184,7 @@ import { ref, onUnmounted } from 'vue';
 
 // --- STATE ---
 const isCameraOn = ref(false);
+const isLoading = ref(false); 
 const videoRef = ref(null);
 const canvasRef = ref(null);
 let model = null;
@@ -200,54 +201,84 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY;
 const MODEL_ID = import.meta.env.VITE_ROBOFLOW_MODEL_ID; 
 const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION;
 
-// --- HELPER: Wait for External Script ---
-const waitForRoboflow = async () => {
-  let attempts = 0;
-  // Check every 100ms, up to 50 times (5 seconds total)
-  while (!window.roboflow && attempts < 50) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    attempts++;
-  }
-  return window.roboflow;
+// --- HELPER: Universal Script Loader ---
+const loadScript = (src) => {
+  return new Promise((resolve, reject) => {
+    if (window.roboflow) return resolve(window.roboflow);
+
+    // Check if script already exists
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+        // If it exists but hasn't loaded window.roboflow yet, wait a bit
+        setTimeout(() => {
+            if(window.roboflow) resolve(window.roboflow);
+            else reject(new Error("Roboflow script exists but object not found"));
+        }, 1000);
+        return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+
+    script.onload = () => {
+      if (window.roboflow) resolve(window.roboflow);
+      else reject(new Error("Script loaded but 'roboflow' object missing"));
+    };
+
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+
+    document.head.appendChild(script);
+  });
 };
 
-// --- LOAD ROBOFLOW MODEL ---
+// --- ROBOFLOW INITIALIZATION (ONLINE CDN) ---
+const loadRoboflowLib = async () => {
+  console.log("Attempting to load Roboflow from CDN...");
+  // Version 0.2.26 is the most stable for YOLOv8
+  return await loadScript("https://cdn.roboflow.com/0.2.26/roboflow.js");
+};
+
+// --- LOAD MODEL ---
 const loadModel = async () => {
-  console.log(`Attempting to load: ${MODEL_ID} v${MODEL_VERSION}`);
+  console.log(`Starting load process: ${MODEL_ID} v${MODEL_VERSION}`);
+  isLoading.value = true;
 
-  // 1. Wait for the library to be available
-  const rf = await waitForRoboflow();
+  try {
+    const rf = await loadRoboflowLib();
+    console.log("✅ Library loaded from CDN.");
 
-  if (rf) {
-    try {
-      // 2. Load the model
-      model = await rf
-        .auth({ publishable_key: PUBLISHABLE_KEY })
-        .load({ model: MODEL_ID, version: MODEL_VERSION });
-        
-      console.log("✅ Roboflow Model Loaded Successfully");
-      return true;
-    } catch (err) {
-      console.error("❌ Error loading model:", err);
-      alert("Error loading model. Check API Key and Model ID.");
-      return false;
-    }
-  } else {
-    console.error("❌ Roboflow.js library never loaded.");
-    alert("Could not load the AI Engine. Please refresh the page.");
+    const loadPromise = rf.auth({ publishable_key: PUBLISHABLE_KEY })
+                          .load({ model: MODEL_ID, version: MODEL_VERSION });
+    
+    // 30s timeout for slower connections
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Model load timed out.")), 30000)
+    );
+
+    model = await Promise.race([loadPromise, timeoutPromise]);
+      
+    console.log("✅ Model Loaded Successfully");
+    return true;
+
+  } catch (err) {
+    console.error("❌ Fatal Error:", err);
+    alert(`Error loading model: ${err.message}. \n\nCheck if your AdBlocker is blocking 'cdn.roboflow.com'.`);
     return false;
+  } finally {
+    isLoading.value = false;
   }
 };
 
 // --- CAMERA LOGIC ---
 const startCameraLogic = async () => {
-  // 1. Load Model if not loaded
+  if (isLoading.value) return; 
+
   if (!model) {
     const success = await loadModel();
-    if (!success) return; // Stop if model failed
+    if (!success) return; 
   }
 
-  // 2. Access Webcam
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -261,41 +292,40 @@ const startCameraLogic = async () => {
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
       
-      // Wait for video data to load to set canvas size
-      videoRef.value.onloadedmetadata = () => {
-        if(canvasRef.value && videoRef.value) {
-           canvasRef.value.width = videoRef.value.videoWidth;
-           canvasRef.value.height = videoRef.value.videoHeight;
-        }
+      videoRef.value.onloadeddata = async () => {
+        if(!videoRef.value || !canvasRef.value) return;
+
+        try { await videoRef.value.play(); } catch (e) { console.error(e); }
+
+        // MATCH DIMENSIONS EXACTLY
+        const w = videoRef.value.videoWidth;
+        const h = videoRef.value.videoHeight;
+        
+        videoRef.value.width = w;
+        videoRef.value.height = h;
+        canvasRef.value.width = w;
+        canvasRef.value.height = h;
+
         isCameraOn.value = true;
-        // Start playing the video explicitly (needed for some browsers)
-        videoRef.value.play().catch(e => console.error("Play error", e));
-        detectFrame(); // Start Loop
+        detectFrame(); 
       };
     }
   } catch (err) {
     console.error("Camera access denied:", err);
-    alert("Could not access camera. Please check permissions.");
+    alert("Could not access camera. Please allow permissions.");
   }
 };
 
 const stopCamera = () => {
   isCameraOn.value = false;
+  if (animationId) cancelAnimationFrame(animationId);
   
-  // Stop detection loop
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-
-  // Stop Video Stream
   if (videoRef.value && videoRef.value.srcObject) {
     const tracks = videoRef.value.srcObject.getTracks();
     tracks.forEach(track => track.stop());
     videoRef.value.srcObject = null;
   }
   
-  // Clear Canvas
   if (canvasRef.value) {
     const ctx = canvasRef.value.getContext('2d');
     ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
@@ -304,75 +334,91 @@ const stopCamera = () => {
 
 // --- DETECTION LOOP ---
 const detectFrame = async () => {
-  // Safety Checks
   if (!isCameraOn.value || !model || !videoRef.value || !canvasRef.value) return;
-  if (videoRef.value.paused || videoRef.value.ended) return;
+  
+  if (videoRef.value.paused || videoRef.value.ended || videoRef.value.readyState < 3) {
+      animationId = requestAnimationFrame(detectFrame);
+      return;
+  }
 
   try {
-    // 3. Detect
     const predictions = await model.detect(videoRef.value);
     
-    // 4. Draw
+    // DEBUG: Prints 1 log if a person is found
+    if (predictions.length > 0) {
+        // console.log("Detection found:", predictions[0]); 
+    }
+
     const ctx = canvasRef.value.getContext('2d');
-    // Clear previous drawings
-    ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+    const w = canvasRef.value.width;
+    const h = canvasRef.value.height;
+
+    ctx.clearRect(0, 0, w, h);
     
     predictions.forEach(pred => {
-      // --- MIRRORING CALCULATIONS ---
-      // Because the video is CSS mirrored (transform: scaleX(-1)), 
-      // we must flip the X coordinates for the canvas drawing to match the visual.
-      const x = canvasRef.value.width - pred.bbox.x - (pred.bbox.width / 2);
-      const y = pred.bbox.y - (pred.bbox.height / 2);
+      // HANDLE DIFFERENT API RESPONSES
+      const boxX = pred.x ?? (pred.bbox ? pred.bbox.x : 0);
+      const boxY = pred.y ?? (pred.bbox ? pred.bbox.y : 0);
+      const boxW = pred.width ?? (pred.bbox ? pred.bbox.width : 0);
+      const boxH = pred.height ?? (pred.bbox ? pred.bbox.height : 0);
+      const confidence = pred.confidence || pred.score || 0;
+      const classLabel = pred.class || pred.label || "Object";
+
+      if (confidence < 0.4) return;
+
+      // MATH FOR MIRRORED VIDEO
+      const x = w - boxX - (boxW / 2); // Flip X
+      const y = boxY - (boxH / 2);     // Normal Y
       
+      const color = getBoxColor(classLabel);
+
       // Draw Box
-      ctx.strokeStyle = getBoxColor(pred.class);
+      ctx.strokeStyle = color;
       ctx.lineWidth = 4;
-      ctx.strokeRect(x, y, pred.bbox.width, pred.bbox.height);
+      ctx.strokeRect(x, y, boxW, boxH);
       
-      // Draw Label Background
-      const text = `${pred.class} ${Math.round(pred.confidence * 100)}%`;
+      // Draw Label
+      const text = `${classLabel} ${Math.round(confidence * 100)}%`;
       const textWidth = ctx.measureText(text).width;
       
-      ctx.fillStyle = getBoxColor(pred.class);
+      ctx.fillStyle = color;
       ctx.fillRect(x, y - 25, textWidth + 10, 25);
       
-      // Draw Label Text
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 16px Inter, sans-serif";
       ctx.fillText(text, x + 5, y - 7);
       
-      // Draw Segmentation Mask (Mirrored)
+      // Draw Segmentation (Mirrored)
       if (pred.points && pred.points.length > 0) {
-        ctx.fillStyle = getBoxColor(pred.class).replace('rgb', 'rgba').replace(')', ', 0.3)'); 
+        ctx.fillStyle = color.replace(')', ', 0.3)').replace('rgb', 'rgba'); 
         ctx.beginPath();
-        
-        // Mirror the first point
-        ctx.moveTo(canvasRef.value.width - pred.points[0].x, pred.points[0].y);
-        
-        // Mirror subsequent points
+        // Mirror points: w - point.x
+        ctx.moveTo(w - pred.points[0].x, pred.points[0].y);
         for (let i = 1; i < pred.points.length; i++) {
-            ctx.lineTo(canvasRef.value.width - pred.points[i].x, pred.points[i].y);
+            ctx.lineTo(w - pred.points[i].x, pred.points[i].y);
         }
         ctx.closePath();
         ctx.fill(); 
-        ctx.strokeStyle = getBoxColor(pred.class);
+        ctx.strokeStyle = color;
         ctx.stroke(); 
       }
     });
     
     animationId = requestAnimationFrame(detectFrame);
   } catch (err) {
-    console.warn("Detection warning (frame skipped):", err);
+    if (!err.message.includes("transpose")) {
+        console.warn("Detection Loop Error:", err);
+    }
     animationId = requestAnimationFrame(detectFrame); 
   }
 };
 
 const getBoxColor = (className) => {
-  // Use distinct colors for your specific classes
-  if (className === 'human' || className === 'person') return '#3b82f6'; // Blue
-  if (className === 'vehicle' || className === 'car') return '#22c55e'; // Green
-  if (className === 'animal' || className === 'dog') return '#eab308'; // Yellow
-  return '#ef4444'; // Red (default)
+  const c = className.toLowerCase();
+  if (c.includes('human') || c.includes('person')) return 'rgb(59, 130, 246)'; 
+  if (c.includes('vehicle') || c.includes('car')) return 'rgb(34, 197, 94)';   
+  if (c.includes('animal') || c.includes('dog')) return 'rgb(234, 179, 8)';    
+  return 'rgb(239, 68, 68)'; 
 };
 
 onUnmounted(() => {
