@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import DahsboardView from '../views/DahsboardView.vue'
+import DashboardView from '../views/DashboardView.vue'
 import AboutView from '../views/AboutView.vue'
 
 const router = createRouter({
@@ -7,8 +7,8 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'dashboard',
-      component: DahsboardView
+      name: 'dashboard', // This will be your home page
+      component: DashboardView
     },
     {
       path: '/about',
