@@ -1,6 +1,6 @@
 <template>
   <div class="live-demo-container">
-    <!-- Navigation (Reused) -->
+    <!-- Navigation -->
     <nav class="navbar">
       <div class="logo">
         <img src="@/assets/img/logo.png" alt="HAV-Net Logo" class="logo-img" />
@@ -15,13 +15,13 @@
       <button class="login-btn">Login</button>
     </nav>
 
-    <!-- Main Content Grid -->
+    <!-- Main Content -->
     <main class="main-content">
       
       <!-- Header -->
       <div class="page-header">
         <h1>Live Demo & Limitations</h1>
-        <p>Experience our YOLOv8-seg model in real-time. Please review the operational constraints below.</p>
+        <p>Experience our YOLOv8-seg model via Cloud API. Accurate detection for Humans, Animals, and Vehicles.</p>
       </div>
 
       <div class="split-layout">
@@ -30,16 +30,22 @@
         <div class="camera-section">
           <h2>Real-Time Object Detection</h2>
           
-          <div class="video-wrapper">
-            <!-- Actual Video Element -->
+          <!-- Wrapper referenced for Fullscreen -->
+          <div ref="wrapperRef" class="video-wrapper">
+            
+            <!-- Video & Canvas -->
             <video ref="videoRef" autoplay muted playsinline class="video-feed" :class="{ hidden: !isCameraOn }"></video>
-            <!-- Canvas for Drawing Boxes -->
             <canvas ref="canvasRef" class="video-overlay" :class="{ hidden: !isCameraOn }"></canvas>
+
+            <!-- Analyzing Indicator (Shows when API is working) -->
+            <div v-if="isCameraOn && isProcessing" class="status-badge">
+              <div class="spinner"></div>
+              <span>Analyzing...</span>
+            </div>
 
             <!-- Placeholder State (When Camera is Off) -->
             <div v-if="!isCameraOn" class="camera-placeholder">
               <div class="icon-circle">
-                <!-- Simple SVG Camera Off Icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M2 2l20 20"/>
                   <path d="M7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4"/>
@@ -53,23 +59,30 @@
           </div>
 
           <p class="instruction-text">
-            Detects: <strong>Human, Animal, Vehicle</strong>. Best used in well-lit environments.
+            Detects: <strong>Human, Animal, Vehicle</strong> via Roboflow Cloud.
           </p>
 
           <div class="controls">
-            <!-- UPDATED: Clicking this now opens the instructions modal first -->
+            <!-- Start Button -->
             <button @click="openInstructions" :disabled="isCameraOn" class="btn btn-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
               Start Camera
             </button>
+            
+            <!-- Stop Button -->
             <button @click="stopCamera" :disabled="!isCameraOn" class="btn btn-secondary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
-              Stop Camera
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
+              Stop
+            </button>
+
+            <!-- Fullscreen Button -->
+             <button @click="toggleFullscreen" :disabled="!isCameraOn" class="btn btn-secondary" title="Fullscreen">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
             </button>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: Limitations (Based on PDF) -->
+        <!-- RIGHT COLUMN: Limitations -->
         <div class="limitations-section">
           <h2>Project Limitations</h2>
           
@@ -79,10 +92,7 @@
             </div>
             <div class="content">
               <h3>Limited Dataset Scope</h3>
-              <p>
-                Trained specifically on general Humans, common Animals (dogs, elephants, chickens), and Vehicles. 
-                Rare species or unusual vehicle types may have lower confidence scores.
-              </p>
+              <p>Trained specifically on Humans, common Animals (dogs, elephants, chickens), and Vehicles. Rare species may have lower confidence.</p>
             </div>
           </div>
 
@@ -92,10 +102,7 @@
             </div>
             <div class="content">
               <h3>Environmental Occlusion</h3>
-              <p>
-                While improved via fine-tuning (Activity 9), the model may still struggle with objects 
-                heavily obscured by window frames or dense foliage.
-              </p>
+              <p>The model may still struggle with objects heavily obscured by window frames or dense foliage.</p>
             </div>
           </div>
 
@@ -104,11 +111,8 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5v.01"/><path d="M16 16v.01"/><path d="M12 12v.01"/></svg>
             </div>
             <div class="content">
-              <h3>Web Browser Resources</h3>
-              <p>
-                Performance depends on client hardware (GPU/CPU acceleration). Older devices 
-                may experience lower FPS compared to the native Python environment.
-              </p>
+              <h3>Cloud API Latency</h3>
+              <p>We use cloud processing for maximum accuracy. Frame rate depends on your internet connection speed.</p>
             </div>
           </div>
 
@@ -118,10 +122,7 @@
             </div>
             <div class="content">
               <h3>Lighting Conditions</h3>
-              <p>
-                Extreme backlighting or very low-light scenarios can lead to false negatives, 
-                despite our efforts to include shadowed training data.
-              </p>
+              <p>Extreme backlighting or very low-light scenarios can lead to false negatives.</p>
             </div>
           </div>
 
@@ -129,7 +130,7 @@
       </div>
     </main>
     
-    <!-- === INSTRUCTION MODAL (Initially Hidden) === -->
+    <!-- === OLD INSTRUCTION MODAL RESTORED === -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal-content">
         <div class="modal-header">
@@ -142,6 +143,7 @@
         <p class="modal-subtitle">Follow these steps to ensure the best experience with our live detection model.</p>
         
         <div class="steps-list">
+          <!-- Step 1 -->
           <div class="step-item">
             <div class="step-number">1</div>
             <div class="step-text">
@@ -150,6 +152,7 @@
             </div>
           </div>
           
+          <!-- Step 2 -->
           <div class="step-item">
             <div class="step-number">2</div>
             <div class="step-text">
@@ -158,6 +161,7 @@
             </div>
           </div>
           
+          <!-- Step 3 -->
           <div class="step-item">
             <div class="step-number">3</div>
             <div class="step-text">
@@ -167,7 +171,6 @@
           </div>
         </div>
         
-        <!-- This button actually triggers the camera -->
         <button @click="confirmStartCamera" class="modal-action-btn">Start Now</button>
       </div>
     </div>
@@ -179,74 +182,43 @@
   </div>
 </template>
 
-
 <script setup>
 import { ref, onUnmounted } from 'vue';
+import axios from 'axios'; 
 
 // --- STATE ---
 const isCameraOn = ref(false);
-const isLoading = ref(false);
+const isProcessing = ref(false); 
 const videoRef = ref(null);
 const canvasRef = ref(null);
-let engine = null; 
-let workerId = null; // ✅ Added workerId state
-let animationId = null;
+const wrapperRef = ref(null); 
+let intervalId = null;
 
-// --- MODAL STATE ---
+// --- CONFIGURATION ---
+const API_KEY = 'RPrtUyC2Xf54HEVlYY7J'; 
+const MODEL_ENDPOINT = 'https://detect.roboflow.com/animal_vehicle_human_seg-t1sz5/1';
+
+// --- MODAL & CONTROLS ---
 const showModal = ref(false);
 const openInstructions = () => { showModal.value = true; };
 const closeModal = () => { showModal.value = false; };
 const confirmStartCamera = () => { closeModal(); startCameraLogic(); };
 
-// --- CONFIGURATION ---
-const PUBLISHABLE_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY;
-const MODEL_ID = import.meta.env.VITE_ROBOFLOW_MODEL_ID; 
-const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION || 3;
-
-// --- LOAD MODEL ---
-const loadModel = async () => {
-  if (engine && workerId) return true;
-
-  console.log(`Starting load process: ${MODEL_ID} v${MODEL_VERSION}`);
-  isLoading.value = true;
-
-  try {
-    const { InferenceEngine } = await import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/inferencejs/+esm");
-    console.log("✅ InferenceJS loaded.");
-
-    engine = new InferenceEngine();
-
-    // ✅ FIX: Capture the returned workerId
-    workerId = await engine.startWorker(MODEL_ID, MODEL_VERSION, PUBLISHABLE_KEY);
-      
-    console.log(`✅ Model Loaded Successfully (Worker ID: ${workerId})`);
-    return true;
-
-  } catch (err) {
-    console.error("❌ Fatal Error:", err);
-    alert(`Error loading model: ${err.message}`);
-    return false;
-  } finally {
-    isLoading.value = false;
+// --- FULLSCREEN TOGGLE ---
+const toggleFullscreen = async () => {
+  if (!wrapperRef.value) return;
+  if (!document.fullscreenElement) {
+    try { await wrapperRef.value.requestFullscreen(); } catch (err) { console.error(err); }
+  } else {
+    try { await document.exitFullscreen(); } catch (err) { console.error(err); }
   }
 };
 
 // --- CAMERA LOGIC ---
 const startCameraLogic = async () => {
-  if (isLoading.value) return; 
-
-  if (!engine || !workerId) {
-    const success = await loadModel();
-    if (!success) return; 
-  }
-
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'user', 
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      },
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       audio: false
     });
     
@@ -254,31 +226,31 @@ const startCameraLogic = async () => {
       videoRef.value.srcObject = stream;
       
       videoRef.value.onloadeddata = async () => {
-        if(!videoRef.value || !canvasRef.value) return;
         try { await videoRef.value.play(); } catch (e) { console.error(e); }
 
-        // Set Display Canvas Dimensions to match Video
         const w = videoRef.value.videoWidth;
         const h = videoRef.value.videoHeight;
-
         videoRef.value.width = w;
         videoRef.value.height = h;
         canvasRef.value.width = w;
         canvasRef.value.height = h;
 
         isCameraOn.value = true;
-        detectFrame(); 
+        
+        // 1.5 FPS (600ms) to balance API speed and fluidity
+        intervalId = setInterval(captureAndDetect, 600); 
       };
     }
   } catch (err) {
-    console.error("Camera access denied:", err);
-    alert("Could not access camera.");
+    console.error("Camera denied:", err);
+    alert("Could not access camera. Please check permissions.");
   }
 };
 
 const stopCamera = () => {
   isCameraOn.value = false;
-  if (animationId) cancelAnimationFrame(animationId);
+  isProcessing.value = false;
+  if (intervalId) clearInterval(intervalId);
   
   if (videoRef.value && videoRef.value.srcObject) {
     const tracks = videoRef.value.srcObject.getTracks();
@@ -290,36 +262,35 @@ const stopCamera = () => {
   if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 };
 
-// --- DETECTION LOOP ---
-const detectFrame = async () => {
-  if (!isCameraOn.value || !engine || !videoRef.value) return;
-  
-  if (videoRef.value.paused || videoRef.value.readyState < 3) {
-      animationId = requestAnimationFrame(detectFrame);
-      return;
-  }
+// --- API LOOP ---
+const captureAndDetect = async () => {
+  if (!isCameraOn.value || !videoRef.value || !canvasRef.value || isProcessing.value) return;
 
-  let imageBitmap = null;
+  isProcessing.value = true;
 
   try {
-    // 1. Create bitmap to avoid DataCloneError with raw Video element
-    imageBitmap = await createImageBitmap(videoRef.value);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = videoRef.value.videoWidth;
+    tempCanvas.height = videoRef.value.videoHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(videoRef.value, 0, 0);
 
-    // ✅ FIX: Pass 'workerId' as the first argument
-    const predictions = await engine.infer(workerId, imageBitmap, {
-      confidence: 0.4,
-      iou: 0.5
+    const imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+    const response = await axios({
+        method: 'POST',
+        url: MODEL_ENDPOINT,
+        params: { api_key: API_KEY },
+        data: imageBase64,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
-    drawPredictions(predictions);
-    
-    animationId = requestAnimationFrame(detectFrame);
-  } catch (err) {
-    console.warn("Loop Error:", err);
-    animationId = requestAnimationFrame(detectFrame); 
+    drawPredictions(response.data.predictions);
+
+  } catch (error) {
+    console.warn("API Error:", error);
   } finally {
-    // 2. Clean up memory immediately
-    if (imageBitmap) imageBitmap.close();
+    isProcessing.value = false;
   }
 };
 
@@ -330,44 +301,36 @@ const drawPredictions = (predictions) => {
   const h = canvasRef.value.height;
 
   ctx.clearRect(0, 0, w, h);
-  
+
   predictions.forEach(pred => {
-    const classLabel = pred.class || pred.class_name || "Object";
-    const confidence = pred.confidence || 0;
-    
-    if (confidence < 0.4) return;
+    const { class: classLabel, confidence, width: boxWidth, height: boxHeight, x: centerX, y: centerY } = pred;
 
-    const boxX = pred.bbox.x;
-    const boxY = pred.bbox.y;
-    const boxW = pred.bbox.width;
-    const boxH = pred.bbox.height;
+    const boxX = centerX - (boxWidth / 2);
+    const boxY = centerY - (boxHeight / 2);
 
-    // MATH FOR MIRRORED VIDEO (ScaleX -1)
-    const x = w - boxX - (boxW / 2); 
-    const y = boxY - (boxH / 2);
-    
+    // === MIRROR FIX ===
+    const mirroredX = w - boxX - boxWidth;
     const color = getBoxColor(classLabel);
 
     // Box
     ctx.strokeStyle = color;
     ctx.lineWidth = 4;
-    ctx.strokeRect(x, y, boxW, boxH);
-    
-    // Text
+    ctx.strokeRect(mirroredX, boxY, boxWidth, boxHeight);
+
+    // Label
     const text = `${classLabel} ${Math.round(confidence * 100)}%`;
     ctx.fillStyle = color;
     const tw = ctx.measureText(text).width;
-    ctx.fillRect(x, y - 25, tw + 10, 25);
+    ctx.fillRect(mirroredX, boxY - 25, tw + 10, 25);
     ctx.fillStyle = "white";
     ctx.font = "bold 16px Inter";
-    ctx.fillText(text, x + 5, y - 7);
-    
+    ctx.fillText(text, mirroredX + 5, boxY - 7);
+
     // Segmentation
     if (pred.points && pred.points.length > 0) {
       ctx.fillStyle = color.replace(')', ', 0.3)').replace('rgb', 'rgba'); 
       ctx.beginPath();
-      
-      // Mirror Points Manually
+      // Mirror Points
       ctx.moveTo(w - pred.points[0].x, pred.points[0].y);
       for (let i = 1; i < pred.points.length; i++) {
         ctx.lineTo(w - pred.points[i].x, pred.points[i].y);
@@ -392,7 +355,6 @@ onUnmounted(() => {
 });
 </script>
 
-
 <style lang="scss" scoped>
 /* --- THEME VARIABLES --- */
 $bg-dark: #050b14;
@@ -413,21 +375,12 @@ $text-muted: #94a3b8;
 
 /* Navbar */
 .navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 5%;
-  height: 70px;
-  background-color: rgba(5, 11, 20, 0.95);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-
+  display: flex; justify-content: space-between; align-items: center; padding: 0 5%; height: 70px;
+  background-color: rgba(5, 11, 20, 0.95); border-bottom: 1px solid rgba(255,255,255,0.1);
   .logo { display: flex; align-items: center; font-weight: 700; color: #fff; gap: 10px; }
   .logo-img { height: 24px; }
   .nav-links a { 
-    color: $text-muted; 
-    margin: 0 15px; 
-    text-decoration: none; 
-    font-size: 0.9rem;
+    color: $text-muted; margin: 0 15px; text-decoration: none; font-size: 0.9rem;
     &.active, &:hover { color: $accent-blue; }
   }
   .login-btn { background: $accent-blue; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: 600; }
@@ -435,24 +388,17 @@ $text-muted: #94a3b8;
 
 /* Main Content */
 .main-content {
-  flex: 1;
-  padding: 40px 5%;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
+  flex: 1; padding: 40px 5%; max-width: 1400px; margin: 0 auto; width: 100%;
 }
 
 .page-header {
-  text-align: center;
-  margin-bottom: 40px;
+  text-align: center; margin-bottom: 40px;
   h1 { font-size: 2.5rem; font-weight: 700; color: white; margin-bottom: 10px; }
   p { color: $text-muted; }
 }
 
 .split-layout {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 40px;
+  display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px;
 }
 
 /* --- LEFT: CAMERA SECTION --- */
@@ -460,39 +406,41 @@ $text-muted: #94a3b8;
   h2 { font-size: 1.25rem; margin-bottom: 15px; color: $text-main; }
 
   .video-wrapper {
-    width: 100%;
-    aspect-ratio: 16/9;
-    background-color: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid #334155;
+    width: 100%; aspect-ratio: 16/9; background-color: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #334155;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
 
+    /* Fullscreen Mode Override */
+    &:fullscreen {
+      width: 100vw; height: 100vh; border-radius: 0; border: none; display: flex; align-items: center; justify-content: center; background: black;
+      .video-feed, .video-overlay { width: auto; height: 100%; aspect-ratio: 4/3; }
+      .status-badge { top: 20px; right: 20px; font-size: 1rem; padding: 8px 16px; }
+    }
+
     .video-feed {
-      width: 100%; 
-      height: 100%; 
-      object-fit: cover;
-      /* === MIRROR FIX === */
-      transform: scaleX(-1);
+      width: 100%; height: 100%; object-fit: cover;
+      transform: scaleX(-1); /* Mirror Effect */
     }
 
     .video-overlay {
       width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;
     }
 
+    /* Analyzing Indicator */
+    .status-badge {
+      position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
+      font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
+      .spinner { width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    }
+
     .camera-placeholder {
       width: 100%; height: 100%; position: absolute; top: 0; left: 0;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(5,11,20,0.9)), url('@/assets/img/logo.png');
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(5,11,20,0.95)), url('@/assets/img/logo.png');
       background-size: cover;
       
       .icon-circle {
-        background: rgba(255,255,255,0.05);
-        padding: 20px;
-        border-radius: 50%;
-        margin-bottom: 20px;
-        color: $text-muted;
+        background: rgba(255,255,255,0.05); padding: 20px; border-radius: 50%; margin-bottom: 20px; color: $text-muted;
       }
       h3 { color: white; font-size: 1.2rem; margin-bottom: 8px; }
       p { color: $text-muted; font-size: 0.9rem; }
@@ -500,43 +448,17 @@ $text-muted: #94a3b8;
   }
 
   .instruction-text {
-    margin-top: 15px;
-    color: $text-muted;
-    font-size: 0.85rem;
-    text-align: center;
+    margin-top: 15px; color: $text-muted; font-size: 0.85rem; text-align: center;
     strong { color: $accent-blue; }
   }
 
   .controls {
-    margin-top: 25px;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-
+    margin-top: 25px; display: flex; justify-content: center; gap: 15px;
     .btn {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 24px;
-      border-radius: 6px;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      
+      display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s;
       &:disabled { opacity: 0.5; cursor: not-allowed; }
-
-      &.btn-primary {
-        background-color: $accent-blue;
-        color: white;
-        &:hover:not(:disabled) { background-color: darken($accent-blue, 10%); }
-      }
-
-      &.btn-secondary {
-        background-color: #334155;
-        color: white;
-        &:hover:not(:disabled) { background-color: #475569; }
-      }
+      &.btn-primary { background-color: $accent-blue; color: white; &:hover:not(:disabled) { background-color: darken($accent-blue, 10%); } }
+      &.btn-secondary { background-color: #334155; color: white; &:hover:not(:disabled) { background-color: #475569; } }
     }
   }
 }
@@ -546,15 +468,8 @@ $text-muted: #94a3b8;
   h2 { font-size: 1.25rem; margin-bottom: 15px; color: $text-main; }
   
   .limitation-card {
-    background-color: $bg-card;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 15px;
-    display: flex;
-    gap: 15px;
+    background-color: $bg-card; border: 1px solid #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; gap: 15px;
     transition: transform 0.2s;
-
     &:hover { background-color: $bg-card-hover; border-color: $accent-blue; }
 
     .icon-box {
@@ -564,7 +479,6 @@ $text-muted: #94a3b8;
       &.blue-light { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; }
       &.blue-dark { background: rgba(30, 64, 175, 0.1); color: #60a5fa; }
     }
-
     .content {
       h3 { font-size: 1rem; color: #fff; margin-bottom: 5px; }
       p { font-size: 0.85rem; color: $text-muted; line-height: 1.4; }
@@ -572,133 +486,61 @@ $text-muted: #94a3b8;
   }
 }
 
-/* --- MODAL STYLES (NEW) --- */
+/* --- MODAL (Restored Old Design) --- */
 .modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+  z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px;
 }
-
 .modal-content {
-  background-color: #0f172a; /* Dark Card Background */
+  background: #0f172a; /* Dark Blue/Slate */
   border: 1px solid #334155;
-  width: 100%;
-  max-width: 500px;
+  width: 100%; max-width: 500px;
   border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  padding: 32px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   animation: fadeIn 0.3s ease-out;
 }
 
 .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  margin-bottom: 10px;
-
-  h3 {
-    color: white;
-    font-size: 1.4rem;
-    font-weight: 700;
-  }
-
-  .close-icon-btn {
-    background: none;
-    border: none;
-    color: $text-muted;
-    cursor: pointer;
-    transition: color 0.2s;
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;
+  h3 { color: white; font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.2; }
+  .close-icon-btn { 
+    background: none; border: none; color: $text-muted; cursor: pointer; padding: 0;
     &:hover { color: white; }
   }
 }
 
 .modal-subtitle {
-  color: $text-muted;
-  font-size: 0.9rem;
-  margin-bottom: 30px;
+  color: $text-muted; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;
 }
 
-.steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 30px;
-}
+.steps-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; }
 
 .step-item {
-  display: flex;
-  gap: 15px;
-  
-  .step-number {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    background-color: rgba(59, 130, 246, 0.2);
-    color: $accent-blue;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: 700;
-    font-size: 0.9rem;
+  display: flex; gap: 15px; align-items: flex-start;
+  .step-number { 
+    width: 32px; height: 32px; 
+    background: rgba(59,130,246,0.2); color: $accent-blue; 
+    border-radius: 50%; display: flex; justify-content: center; align-items: center; 
+    font-weight: 700; flex-shrink: 0; font-size: 0.9rem;
   }
-
-  .step-text {
-    h4 {
-      color: #e2e8f0;
-      font-size: 1rem;
-      margin-bottom: 4px;
-      font-weight: 600;
-    }
-    p {
-      color: $text-muted;
-      font-size: 0.85rem;
-      line-height: 1.4;
-    }
-  }
+  .step-text h4 { color: white; margin-bottom: 4px; font-size: 1rem; font-weight: 600; }
+  .step-text p { color: $text-muted; font-size: 0.9rem; margin: 0; line-height: 1.4; }
 }
 
-.modal-action-btn {
-  width: 100%;
-  background-color: $accent-blue;
-  color: white;
-  border: none;
-  padding: 14px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: darken($accent-blue, 10%);
-  }
+.modal-action-btn { 
+  width: 100%; background: $accent-blue; color: white; border: none; 
+  padding: 14px; border-radius: 8px; font-weight: 600; font-size: 1rem;
+  cursor: pointer; transition: 0.2s; 
+  &:hover { background: darken($accent-blue, 10%); } 
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.footer {
-  text-align: center;
-  padding: 20px;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  font-size: 0.8rem;
-  color: #475569;
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .hidden { display: none !important; }
+.footer { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: #475569; }
 
 /* Responsive */
-@media (max-width: 900px) {
-  .split-layout { grid-template-columns: 1fr; }
-  .video-wrapper { aspect-ratio: 4/3; }
-}
+@media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } }
 </style>
