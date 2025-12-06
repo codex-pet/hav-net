@@ -179,15 +179,17 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, onUnmounted } from 'vue';
 
 // --- STATE ---
 const isCameraOn = ref(false);
-const isLoading = ref(false); 
+const isLoading = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
-let model = null;
+let engine = null; 
+let workerId = null; // ✅ Added workerId state
 let animationId = null;
 
 // --- MODAL STATE ---
@@ -197,73 +199,32 @@ const closeModal = () => { showModal.value = false; };
 const confirmStartCamera = () => { closeModal(); startCameraLogic(); };
 
 // --- CONFIGURATION ---
-const PUBLISHABLE_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY; 
+const PUBLISHABLE_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY;
 const MODEL_ID = import.meta.env.VITE_ROBOFLOW_MODEL_ID; 
-const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION;
-
-// --- HELPER: Universal Script Loader ---
-const loadScript = (src) => {
-  return new Promise((resolve, reject) => {
-    if (window.roboflow) return resolve(window.roboflow);
-
-    // Check if script already exists
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-        // If it exists but hasn't loaded window.roboflow yet, wait a bit
-        setTimeout(() => {
-            if(window.roboflow) resolve(window.roboflow);
-            else reject(new Error("Roboflow script exists but object not found"));
-        }, 1000);
-        return;
-    }
-
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-
-    script.onload = () => {
-      if (window.roboflow) resolve(window.roboflow);
-      else reject(new Error("Script loaded but 'roboflow' object missing"));
-    };
-
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-
-    document.head.appendChild(script);
-  });
-};
-
-// --- ROBOFLOW INITIALIZATION (ONLINE CDN) ---
-const loadRoboflowLib = async () => {
-  console.log("Attempting to load Roboflow from CDN...");
-  // Version 0.2.26 is the most stable for YOLOv8
-  return await loadScript("https://cdn.roboflow.com/0.2.26/roboflow.js");
-};
+const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION || 3;
 
 // --- LOAD MODEL ---
 const loadModel = async () => {
+  if (engine && workerId) return true;
+
   console.log(`Starting load process: ${MODEL_ID} v${MODEL_VERSION}`);
   isLoading.value = true;
 
   try {
-    const rf = await loadRoboflowLib();
-    console.log("✅ Library loaded from CDN.");
+    const { InferenceEngine } = await import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/inferencejs/+esm");
+    console.log("✅ InferenceJS loaded.");
 
-    const loadPromise = rf.auth({ publishable_key: PUBLISHABLE_KEY })
-                          .load({ model: MODEL_ID, version: MODEL_VERSION });
-    
-    // 30s timeout for slower connections
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Model load timed out.")), 30000)
-    );
+    engine = new InferenceEngine();
 
-    model = await Promise.race([loadPromise, timeoutPromise]);
+    // ✅ FIX: Capture the returned workerId
+    workerId = await engine.startWorker(MODEL_ID, MODEL_VERSION, PUBLISHABLE_KEY);
       
-    console.log("✅ Model Loaded Successfully");
+    console.log(`✅ Model Loaded Successfully (Worker ID: ${workerId})`);
     return true;
 
   } catch (err) {
     console.error("❌ Fatal Error:", err);
-    alert(`Error loading model: ${err.message}. \n\nCheck if your AdBlocker is blocking 'cdn.roboflow.com'.`);
+    alert(`Error loading model: ${err.message}`);
     return false;
   } finally {
     isLoading.value = false;
@@ -274,7 +235,7 @@ const loadModel = async () => {
 const startCameraLogic = async () => {
   if (isLoading.value) return; 
 
-  if (!model) {
+  if (!engine || !workerId) {
     const success = await loadModel();
     if (!success) return; 
   }
@@ -294,13 +255,12 @@ const startCameraLogic = async () => {
       
       videoRef.value.onloadeddata = async () => {
         if(!videoRef.value || !canvasRef.value) return;
-
         try { await videoRef.value.play(); } catch (e) { console.error(e); }
 
-        // MATCH DIMENSIONS EXACTLY
+        // Set Display Canvas Dimensions to match Video
         const w = videoRef.value.videoWidth;
         const h = videoRef.value.videoHeight;
-        
+
         videoRef.value.width = w;
         videoRef.value.height = h;
         canvasRef.value.width = w;
@@ -312,7 +272,7 @@ const startCameraLogic = async () => {
     }
   } catch (err) {
     console.error("Camera access denied:", err);
-    alert("Could not access camera. Please allow permissions.");
+    alert("Could not access camera.");
   }
 };
 
@@ -326,98 +286,104 @@ const stopCamera = () => {
     videoRef.value.srcObject = null;
   }
   
-  if (canvasRef.value) {
-    const ctx = canvasRef.value.getContext('2d');
-    ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
-  }
+  const ctx = canvasRef.value?.getContext('2d');
+  if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 };
 
 // --- DETECTION LOOP ---
 const detectFrame = async () => {
-  if (!isCameraOn.value || !model || !videoRef.value || !canvasRef.value) return;
+  if (!isCameraOn.value || !engine || !videoRef.value) return;
   
-  if (videoRef.value.paused || videoRef.value.ended || videoRef.value.readyState < 3) {
+  if (videoRef.value.paused || videoRef.value.readyState < 3) {
       animationId = requestAnimationFrame(detectFrame);
       return;
   }
 
+  let imageBitmap = null;
+
   try {
-    const predictions = await model.detect(videoRef.value);
-    
-    // DEBUG: Prints 1 log if a person is found
-    if (predictions.length > 0) {
-        // console.log("Detection found:", predictions[0]); 
-    }
+    // 1. Create bitmap to avoid DataCloneError with raw Video element
+    imageBitmap = await createImageBitmap(videoRef.value);
 
-    const ctx = canvasRef.value.getContext('2d');
-    const w = canvasRef.value.width;
-    const h = canvasRef.value.height;
-
-    ctx.clearRect(0, 0, w, h);
-    
-    predictions.forEach(pred => {
-      // HANDLE DIFFERENT API RESPONSES
-      const boxX = pred.x ?? (pred.bbox ? pred.bbox.x : 0);
-      const boxY = pred.y ?? (pred.bbox ? pred.bbox.y : 0);
-      const boxW = pred.width ?? (pred.bbox ? pred.bbox.width : 0);
-      const boxH = pred.height ?? (pred.bbox ? pred.bbox.height : 0);
-      const confidence = pred.confidence || pred.score || 0;
-      const classLabel = pred.class || pred.label || "Object";
-
-      if (confidence < 0.4) return;
-
-      // MATH FOR MIRRORED VIDEO
-      const x = w - boxX - (boxW / 2); // Flip X
-      const y = boxY - (boxH / 2);     // Normal Y
-      
-      const color = getBoxColor(classLabel);
-
-      // Draw Box
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
-      ctx.strokeRect(x, y, boxW, boxH);
-      
-      // Draw Label
-      const text = `${classLabel} ${Math.round(confidence * 100)}%`;
-      const textWidth = ctx.measureText(text).width;
-      
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y - 25, textWidth + 10, 25);
-      
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px Inter, sans-serif";
-      ctx.fillText(text, x + 5, y - 7);
-      
-      // Draw Segmentation (Mirrored)
-      if (pred.points && pred.points.length > 0) {
-        ctx.fillStyle = color.replace(')', ', 0.3)').replace('rgb', 'rgba'); 
-        ctx.beginPath();
-        // Mirror points: w - point.x
-        ctx.moveTo(w - pred.points[0].x, pred.points[0].y);
-        for (let i = 1; i < pred.points.length; i++) {
-            ctx.lineTo(w - pred.points[i].x, pred.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill(); 
-        ctx.strokeStyle = color;
-        ctx.stroke(); 
-      }
+    // ✅ FIX: Pass 'workerId' as the first argument
+    const predictions = await engine.infer(workerId, imageBitmap, {
+      confidence: 0.4,
+      iou: 0.5
     });
+
+    drawPredictions(predictions);
     
     animationId = requestAnimationFrame(detectFrame);
   } catch (err) {
-    if (!err.message.includes("transpose")) {
-        console.warn("Detection Loop Error:", err);
-    }
+    console.warn("Loop Error:", err);
     animationId = requestAnimationFrame(detectFrame); 
+  } finally {
+    // 2. Clean up memory immediately
+    if (imageBitmap) imageBitmap.close();
   }
 };
 
+const drawPredictions = (predictions) => {
+  if (!canvasRef.value) return;
+  const ctx = canvasRef.value.getContext('2d');
+  const w = canvasRef.value.width;
+  const h = canvasRef.value.height;
+
+  ctx.clearRect(0, 0, w, h);
+  
+  predictions.forEach(pred => {
+    const classLabel = pred.class || pred.class_name || "Object";
+    const confidence = pred.confidence || 0;
+    
+    if (confidence < 0.4) return;
+
+    const boxX = pred.bbox.x;
+    const boxY = pred.bbox.y;
+    const boxW = pred.bbox.width;
+    const boxH = pred.bbox.height;
+
+    // MATH FOR MIRRORED VIDEO (ScaleX -1)
+    const x = w - boxX - (boxW / 2); 
+    const y = boxY - (boxH / 2);
+    
+    const color = getBoxColor(classLabel);
+
+    // Box
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, y, boxW, boxH);
+    
+    // Text
+    const text = `${classLabel} ${Math.round(confidence * 100)}%`;
+    ctx.fillStyle = color;
+    const tw = ctx.measureText(text).width;
+    ctx.fillRect(x, y - 25, tw + 10, 25);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 16px Inter";
+    ctx.fillText(text, x + 5, y - 7);
+    
+    // Segmentation
+    if (pred.points && pred.points.length > 0) {
+      ctx.fillStyle = color.replace(')', ', 0.3)').replace('rgb', 'rgba'); 
+      ctx.beginPath();
+      
+      // Mirror Points Manually
+      ctx.moveTo(w - pred.points[0].x, pred.points[0].y);
+      for (let i = 1; i < pred.points.length; i++) {
+        ctx.lineTo(w - pred.points[i].x, pred.points[i].y);
+      }
+      ctx.closePath();
+      ctx.fill(); 
+      ctx.stroke(); 
+    }
+  });
+};
+
 const getBoxColor = (className) => {
-  const c = className.toLowerCase();
+  const c = String(className).toLowerCase();
   if (c.includes('human') || c.includes('person')) return 'rgb(59, 130, 246)'; 
   if (c.includes('vehicle') || c.includes('car')) return 'rgb(34, 197, 94)';   
-  if (c.includes('animal') || c.includes('dog')) return 'rgb(234, 179, 8)';    
+  if (c.includes('animal') || c.includes('dog') || c.includes('cat')) return 'rgb(234, 179, 8)';    
   return 'rgb(239, 68, 68)'; 
 };
 
@@ -425,6 +391,7 @@ onUnmounted(() => {
   stopCamera();
 });
 </script>
+
 
 <style lang="scss" scoped>
 /* --- THEME VARIABLES --- */
