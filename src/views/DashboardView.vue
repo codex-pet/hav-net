@@ -97,7 +97,7 @@ $card-bg: #0f172a;
   color: $text-color;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
-  padding: 0 5%;
+  // padding: 0 5%;
   overflow-x: hidden;
 }
 
@@ -110,6 +110,7 @@ $card-bg: #0f172a;
   padding: 80px 0 60px;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 40px 5%;
 
   .hero-content {
     flex: 1; 
@@ -190,6 +191,7 @@ $card-bg: #0f172a;
   padding: 40px 0 80px;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px 5%;
 
   .text-block {
     margin-bottom: 50px;

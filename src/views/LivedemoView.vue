@@ -46,6 +46,7 @@
                 </svg>
               </div>
               <h3>Camera is off</h3>
+              <!-- UPDATED PARAGRAPH TAG TARGET -->
               <p>Grant permissions and click "Start Camera" to begin detection.</p>
             </div>
           </div>
@@ -495,7 +496,7 @@ $text-muted: #94a3b8;
 
 /* Main Content */
 .main-content {
-  flex: 1; padding: 40px 5%; max-width: 1400px; margin: 0 auto; width: 100%;
+  flex: 1; padding: 40px 5%; max-width: 1400px; margin: 0 auto; width: 100%; 
 }
 
 .page-header {
@@ -559,7 +560,21 @@ $text-muted: #94a3b8;
         background: rgba(255,255,255,0.05); padding: 20px; border-radius: 50%; margin-bottom: 20px; color: $text-muted;
       }
       h3 { color: white; font-size: 1.2rem; margin-bottom: 8px; }
-      p { color: $text-muted; font-size: 0.9rem; }
+      
+      /* --- ADJUSTED STYLE HERE --- */
+      p { 
+        color: $text-muted; 
+        font-size: 1rem; 
+        text-align: center;
+        padding: 0 2rem;
+        max-width: 400px;
+        line-height: 1.5;
+
+        @media (max-width: 600px) {
+           font-size: 0.9rem;
+           padding: 0 1rem;
+        }
+      }
     }
   }
 

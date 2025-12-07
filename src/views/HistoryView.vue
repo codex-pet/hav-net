@@ -49,26 +49,26 @@
             </tr>
           </thead>
           <tbody>
-            <!-- CHANGED: Iterating over paginatedSessions instead of filteredSessions -->
+            <!-- CHANGED: Added data-label attributes for mobile responsiveness -->
             <tr v-for="session in paginatedSessions" :key="session._id">
-              <td>
+              <td data-label="Status">
                 <span class="status-badge" :class="session.status.toLowerCase()">
                   <span class="dot"></span>
                   {{ session.status }}
                 </span>
               </td>
-              <td>{{ session.date }}</td>
-              <td>{{ formatTime12Hour(session.startTime) }}</td>
+              <td data-label="Date">{{ session.date }}</td>
+              <td data-label="Start Time">{{ formatTime12Hour(session.startTime) }}</td>
               
-              <td>
+              <td data-label="Avg Confidence">
                  <span class="confidence-text" v-if="session.overallConfidence > 0">
                     {{ Math.round(session.overallConfidence) }}%
                  </span>
                  <span class="confidence-text text-muted" v-else>--</span>
               </td>
 
-              <td>{{ session.duration }}</td>
-              <td>
+              <td data-label="Duration">{{ session.duration }}</td>
+              <td data-label="Detections">
                 <button class="detection-btn" @click="openDetectionDetails(session)">
                   {{ session.detectionsCount }} detected
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -81,7 +81,7 @@
           </tbody>
         </table>
 
-        <!-- NEW: Pagination Controls -->
+        <!-- Pagination Controls -->
         <div class="pagination-controls" v-if="totalPages > 1">
           <button 
             class="page-nav-btn" 
@@ -183,7 +183,7 @@ const selectedSession = ref(null);
 
 // --- Pagination State ---
 const currentPage = ref(1);
-const itemsPerPage = 8; // Adjust how many rows per page
+const itemsPerPage = 8; 
 
 // --- Fetch Data ---
 onMounted(async () => {
@@ -340,27 +340,20 @@ $status-red: #ef4444;
   th, td { padding: 18px 25px; text-align: left; border-bottom: 1px solid $border-color; }
   th { font-size: 0.85rem; text-transform: uppercase; color: $text-muted; font-weight: 600; background-color: rgba(255,255,255,0.02); }
   td { font-size: 0.95rem; color: $text-main; }
-
-  /* UPDATED: Center the 4th column (Avg Confidence) automatically */
-  th:nth-child(4), td:nth-child(4) {
-    text-align: center;
-  }
+  th:nth-child(4), td:nth-child(4) { text-align: center; }
 }
 
-/* --- PAGINATION STYLES --- */
+/* Pagination */
 .pagination-controls {
   display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; border-top: 1px solid $border-color;
   background-color: rgba(15, 23, 42, 0.5);
 }
-
 .page-nav-btn {
   background: transparent; border: 1px solid $border-color; color: $text-muted; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
   &:hover:not(:disabled) { border-color: $accent-blue; color: white; }
   &:disabled { opacity: 0.5; cursor: default; }
 }
-
 .page-numbers { display: flex; gap: 5px; }
-
 .page-number-btn {
   background: transparent; border: none; color: $text-muted; width: 30px; height: 30px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;
   &:hover:not(.active) { background: rgba(255,255,255,0.05); color: white; }
@@ -375,9 +368,7 @@ $status-red: #ef4444;
   &.interrupted { .dot { background-color: $status-yellow; } }
   &.failed { .dot { background-color: $status-red; } }
 }
-
 .confidence-text { font-weight: 600; color: #fff; &.text-muted { color: $text-muted; font-weight: 400; } }
-
 .detection-btn {
   background: transparent; border: 1px solid #334155; color: $accent-blue;
   padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;
@@ -390,8 +381,6 @@ $status-red: #ef4444;
 .modal-content { background: #1e293b; border: 1px solid #334155; width: 100%; max-width: 450px; border-radius: 12px; padding: 25px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h3 { color: white; margin: 0; font-size: 1.25rem; } .close-btn { background: none; border: none; color: $text-muted; font-size: 1.5rem; cursor: pointer; } }
 .detail-body { margin-bottom: 25px; .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; color: $text-muted; strong { color: white; } } .divider { height: 1px; background: #334155; margin: 15px 0; } h4 { color: white; margin-bottom: 10px; font-size: 0.95rem; } }
-
-/* Stats List */
 .stats-list-container { display: flex; flex-direction: column; gap: 10px; }
 .stat-item {
     display: flex; justify-content: space-between; align-items: center;
@@ -404,16 +393,68 @@ $status-red: #ef4444;
         .stat-count { color: $text-muted; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; }
     }
 }
-
 .no-data { color: $text-muted; font-size: 0.85rem; font-style: italic; }
 .total-count { text-align: right; font-size: 0.85rem; color: $text-muted; }
 .modal-action-btn { width: 100%; background: $accent-blue; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; &:hover { background: darken($accent-blue, 10%); } }
 .empty-state { text-align: center; color: $text-muted; padding: 40px; }
 .footer { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: #475569; margin-top: auto; }
 
+/* === RESPONSIVE TABLE (CARD VIEW) === */
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .table-container { border: none; background: transparent; }
-  .pagination-controls { flex-direction: column; gap: 15px; }
+  
+  /* Remove normal table structure */
+  .table-container { background: transparent; border: none; }
+  .history-table, .history-table thead, .history-table tbody, .history-table th, .history-table td, .history-table tr { 
+    display: block; 
+  }
+  
+  /* Hide table headers */
+  .history-table thead tr { 
+    position: absolute; top: -9999px; left: -9999px; 
+  }
+  
+  /* Make rows look like cards */
+  .history-table tr { 
+    background: $bg-panel; 
+    border: 1px solid $border-color; 
+    border-radius: 12px; 
+    margin-bottom: 15px; 
+    padding: 10px 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  
+  /* Style cells as key-value pairs */
+  .history-table td { 
+    border: none; 
+    border-bottom: 1px solid rgba(255,255,255,0.05); 
+    position: relative; 
+    padding: 12px 0; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    text-align: right;
+  }
+  
+  .history-table td:last-child { border-bottom: none; }
+  
+  /* Inject Labels */
+  .history-table td::before { 
+    content: attr(data-label); 
+    font-weight: 600; 
+    color: $text-muted; 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+    margin-right: 20px;
+    text-align: left;
+  }
+
+  .pagination-controls { 
+    flex-direction: column; 
+    gap: 15px; 
+    background: $bg-panel; 
+    border-radius: 8px;
+    border: 1px solid $border-color;
+  }
 }
 </style>

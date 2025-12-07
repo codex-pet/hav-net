@@ -145,6 +145,19 @@ app.get('/api/history', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/user', authenticateToken, async (req, res) => {
+    try {
+        // Find user by ID (from the token) but exclude the password
+        const user = await User.findById(req.user.id).select('email fullName contactNumber');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
