@@ -34,3 +34,9 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Environment Variables (CRITICAL)
+.env
+.env.production
+.env.development
+backend/.env
