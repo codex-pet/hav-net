@@ -3,7 +3,7 @@
     <!-- Navigation Bar Component -->
     <Navbar />
 
-    <!-- Hero Section (UPDATED) -->
+    <!-- Hero Section -->
     <header class="hero">
       <!-- Left Side: Text -->
       <div class="hero-content">
@@ -14,12 +14,14 @@
           in complex real-world environments.
         </p>
         <div class="cta-group">
-          <button class="primary-btn">Launch Live Camera</button> 
-          <button class="secondary-btn">View Documentation</button>
+          <router-link to="/live-demo" class="primary-btn" style="text-decoration: none;">Launch Live Camera</router-link>
+          
+          <!-- UPDATED: Now calls a script method instead of window.open directly -->
+          <button class="secondary-btn" @click="openDocs">View Documentation</button>
         </div>
       </div>
 
-      <!-- Right Side: Image (NEW) -->
+      <!-- Right Side: Image -->
       <div class="hero-image-container">
         <img 
           src="../assets/img/bounding-box.jpg" 
@@ -74,8 +76,13 @@
 </template>
 
 <script setup>
-// Import the separated Navbar component
 import Navbar from '@/components/navbar.vue'; 
+
+// Function to handle opening the documentation
+const openDocs = () => {
+  const url = 'https://drive.google.com/drive/folders/13iVmLivEO-eSfPG1EIaT00ixjphyrrZu?fbclid=IwY2xjawOJUcJleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeIApEnYGDaZzHnCxFn0HDHeG8avFTGJUYPwuRbO9-wPE6G3VGwjgxORZXft8_aem_5o33MIgr5haprF0syClO8g';
+  window.open(url, '_blank');
+};
 </script>
 
 <style lang="scss" scoped>
@@ -84,7 +91,6 @@ $bg-color: #050b14;
 $text-color: #e2e8f0;
 $accent-color: #3b82f6;
 $card-bg: #0f172a;
-/* $nav-height is no longer needed here, but kept if you do math with it */
 
 .dashboard-container {
   background-color: $bg-color;
@@ -95,7 +101,7 @@ $card-bg: #0f172a;
   overflow-x: hidden;
 }
 
-/* --- HERO SECTION UPDATED --- */
+/* --- HERO SECTION --- */
 .hero {
   display: flex;
   align-items: center; 

@@ -169,8 +169,8 @@ let intervalId = null;
 
 // --- SESSION RECORDING STATE ---
 const sessionStartTime = ref(null);
-const sessionDetections = ref(new Set()); 
-const sessionTotalCount = ref(0); 
+const sessionTotalFrames = ref(0);
+const sessionStatsMap = ref({}); 
 
 // --- CONFIGURATION ---
 const API_KEY = 'RPrtUyC2Xf54HEVlYY7J'; 
@@ -181,17 +181,9 @@ const BACKEND_URL = 'http://localhost:3000/api';
 const showInstructionModal = ref(false);
 const showLoginPrompt = ref(false);
 
-// --- LIFECYCLE ---
 onMounted(() => {
-  // Check for token under both common names to be safe
   const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
   isLoggedIn.value = !!token;
-  
-  if(isLoggedIn.value) {
-    console.log("✅ User is logged in. History will be saved.");
-  } else {
-    console.warn("⚠️ No token found. History will NOT be saved.");
-  }
 });
 
 // --- BUTTON LOGIC ---
@@ -229,7 +221,11 @@ const toggleFullscreen = async () => {
 const startCameraLogic = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      video: { 
+        facingMode: 'user', 
+        width: { ideal: 640 }, 
+        height: { ideal: 480 } 
+      },
       audio: false
     });
     
@@ -241,19 +237,27 @@ const startCameraLogic = async () => {
 
         const w = videoRef.value.videoWidth;
         const h = videoRef.value.videoHeight;
+        
+        // 1. Set Internal Resolution
         videoRef.value.width = w;
         videoRef.value.height = h;
         canvasRef.value.width = w;
         canvasRef.value.height = h;
 
+        // 2. Fix Aspect Ratio Visuals (Prevents drifting boxes)
+        if(wrapperRef.value) {
+           wrapperRef.value.style.aspectRatio = `${w}/${h}`;
+        }
+
         // RESET SESSION DATA
         sessionStartTime.value = new Date();
-        sessionDetections.value = new Set();
-        sessionTotalCount.value = 0;
-        console.log("🎥 Session Started at:", sessionStartTime.value);
+        sessionStatsMap.value = {}; 
+        sessionTotalFrames.value = 0;
 
         isCameraOn.value = true;
-        intervalId = setInterval(captureAndDetect, 600); 
+        
+        // Faster Interval for smoother tracking (300ms)
+        intervalId = setInterval(captureAndDetect, 300); 
       };
     }
   } catch (err) {
@@ -263,17 +267,14 @@ const startCameraLogic = async () => {
 };
 
 const stopCamera = async () => {
-  // 1. STOP PROCESSING FIRST
   if (intervalId) clearInterval(intervalId);
   isProcessing.value = false;
   
-  // 2. SAVE SESSION TO BACKEND (Wait for it to finish)
+  // Save before clearing
   if (isCameraOn.value && sessionStartTime.value) {
-    console.log("🛑 Stopping camera... Attempting to save session.");
     await saveSessionToBackend();
   }
 
-  // 3. CLEANUP UI
   isCameraOn.value = false;
   averageConfidence.value = 0; 
   
@@ -287,55 +288,58 @@ const stopCamera = async () => {
   if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 };
 
-// --- BACKEND SAVE FUNCTION (DEBUGGED) ---
+// --- BACKEND SAVE FUNCTION ---
 const saveSessionToBackend = async () => {
-  // Try to find the token
   const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
-  
-  if (!token) {
-    console.error("❌ Cannot save: No Login Token Found.");
-    return;
-  }
+  if (!token) return;
 
   const endTime = new Date();
   const durationMs = endTime - sessionStartTime.value;
   
-  // Format Duration
   const seconds = Math.floor((durationMs / 1000) % 60);
   const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
   const durationStr = minutes > 0 ? `${minutes} min ${seconds} sec` : `${seconds} seconds`;
 
-  // Format Date and Time
   const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
-  // Convert Set to Array for storage
-  const detectedItemsArray = Array.from(sessionDetections.value);
+  // Calculate Stats
+  const rawStats = sessionStatsMap.value;
+  const detectedItems = Object.keys(rawStats);
+  let totalConfidenceSum = 0;
+  let totalCountSum = 0;
+  
+  const classStats = detectedItems.map(key => {
+    const data = rawStats[key];
+    totalConfidenceSum += data.totalConf;
+    totalCountSum += data.count;
+    return {
+      className: key,
+      count: data.count,
+      avgConfidence: (data.totalConf / data.count) * 100 
+    };
+  });
+
+  const overallConfidence = totalCountSum > 0 ? (totalConfidenceSum / totalCountSum) * 100 : 0;
 
   const payload = {
     date: dateStr,
     startTime: timeStr,
     duration: durationStr,
     status: 'Completed',
-    detectionsCount: sessionTotalCount.value,
-    detectedItems: detectedItemsArray.length > 0 ? detectedItemsArray : ['No Objects']
+    detectionsCount: sessionTotalFrames.value, 
+    detectedItems: detectedItems,
+    overallConfidence: overallConfidence,
+    classStats: classStats
   };
 
-  console.log("📤 Sending Data to Backend:", payload);
-
   try {
-    const response = await axios.post(`${BACKEND_URL}/history`, payload, {
+    await axios.post(`${BACKEND_URL}/history`, payload, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    console.log("✅ SUCCESS: Session Saved to DB!", response.data);
+    console.log("✅ Session Saved");
   } catch (error) {
-    console.error("❌ FAILED to save session:", error);
-    if (error.response) {
-       console.error("Server Response:", error.response.data);
-       if(error.response.status === 403 || error.response.status === 401) {
-           alert("Session failed to save: Your login session has expired. Please login again.");
-       }
-    }
+    console.error("❌ Failed to save session:", error);
   }
 };
 
@@ -352,7 +356,7 @@ const captureAndDetect = async () => {
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.drawImage(videoRef.value, 0, 0);
 
-    const imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    const imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.6).split(',')[1]; // Lower quality slightly for speed
 
     const response = await axios({
         method: 'POST',
@@ -369,10 +373,16 @@ const captureAndDetect = async () => {
       const total = predictions.reduce((acc, curr) => acc + curr.confidence, 0);
       averageConfidence.value = total / predictions.length;
       
-      // Add unique items (e.g., "Human")
-      predictions.forEach(p => sessionDetections.value.add(p.class));
-      // Increment total counter
-      sessionTotalCount.value += predictions.length;
+      sessionTotalFrames.value += predictions.length;
+
+      predictions.forEach(p => {
+        const cls = p.class;
+        if (!sessionStatsMap.value[cls]) {
+          sessionStatsMap.value[cls] = { count: 0, totalConf: 0 };
+        }
+        sessionStatsMap.value[cls].count += 1;
+        sessionStatsMap.value[cls].totalConf += p.confidence;
+      });
     } else {
       averageConfidence.value = 0;
     }
@@ -404,42 +414,48 @@ const drawPredictions = (predictions) => {
     const mirroredX = w - boxX - boxWidth;
     const color = getBoxColor(classLabel);
 
-    // Box
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(mirroredX, boxY, boxWidth, boxHeight);
-
-    // Label
-    const text = `${classLabel} ${Math.round(confidence * 100)}%`;
-    ctx.fillStyle = color;
-    const tw = ctx.measureText(text).width;
-    ctx.fillRect(mirroredX, boxY - 25, tw + 10, 25);
-    ctx.fillStyle = "white";
-    ctx.font = "bold 16px Inter";
-    ctx.fillText(text, mirroredX + 5, boxY - 7);
-
-    // Segmentation
+    // 1. Draw Segmentation (Filled Mask)
     if (pred.points && pred.points.length > 0) {
-      ctx.fillStyle = color.replace(')', ', 0.3)').replace('rgb', 'rgba'); 
+      // Increased opacity to 0.4 for better visibility
+      ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.4)'); 
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      
       ctx.beginPath();
-      // Mirror Points
-      ctx.moveTo(w - pred.points[0].x, pred.points[0].y);
+      ctx.moveTo(w - pred.points[0].x, pred.points[0].y); // Mirror Point
       for (let i = 1; i < pred.points.length; i++) {
-        ctx.lineTo(w - pred.points[i].x, pred.points[i].y);
+        ctx.lineTo(w - pred.points[i].x, pred.points[i].y); // Mirror Points
       }
       ctx.closePath();
       ctx.fill(); 
       ctx.stroke(); 
     }
+
+    // 2. Draw Bounding Box
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(mirroredX, boxY, boxWidth, boxHeight);
+
+    // 3. Draw Label Background
+    const text = `${classLabel} ${Math.round(confidence * 100)}%`;
+    ctx.font = "bold 16px Inter";
+    const tw = ctx.measureText(text).width;
+    
+    ctx.fillStyle = color;
+    ctx.fillRect(mirroredX, boxY - 30, tw + 20, 30); // Larger background
+
+    // 4. Draw Label Text
+    ctx.fillStyle = "white";
+    ctx.fillText(text, mirroredX + 10, boxY - 9);
   });
 };
 
 const getBoxColor = (className) => {
   const c = String(className).toLowerCase();
-  if (c.includes('human') || c.includes('person')) return 'rgb(59, 130, 246)'; 
-  if (c.includes('vehicle') || c.includes('car')) return 'rgb(34, 197, 94)';   
-  if (c.includes('animal') || c.includes('dog') || c.includes('cat')) return 'rgb(234, 179, 8)';    
-  return 'rgb(239, 68, 68)'; 
+  if (c.includes('human') || c.includes('person')) return 'rgb(59, 130, 246)'; // Blue
+  if (c.includes('vehicle') || c.includes('car')) return 'rgb(34, 197, 94)';   // Green
+  if (c.includes('animal') || c.includes('dog') || c.includes('cat')) return 'rgb(234, 179, 8)'; // Yellow
+  return 'rgb(239, 68, 68)'; // Red
 };
 
 onUnmounted(() => {

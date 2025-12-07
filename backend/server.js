@@ -28,12 +28,19 @@ const UserSchema = new mongoose.Schema({
 
 const SessionSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    date: { type: String, required: true },       // e.g., "Oct 28, 2025"
-    startTime: { type: String, required: true },  // e.g., "14:30"
-    duration: { type: String, required: true },   // e.g., "15 minutes"
-    status: { type: String, required: true },     // e.g., "Completed"
+    date: { type: String, required: true },
+    startTime: { type: String, required: true },
+    duration: { type: String, required: true },
+    status: { type: String, required: true },
     detectionsCount: { type: Number, default: 0 },
-    detectedItems: [String] // Array of strings e.g., ["Human", "Vehicle"]
+    detectedItems: [String], // Kept for searching
+    // NEW FIELDS
+    overallConfidence: { type: Number, default: 0 }, 
+    classStats: [{ 
+        className: String, 
+        count: Number, 
+        avgConfidence: Number 
+    }]
 });
 
 const User = mongoose.model('User', UserSchema);
@@ -90,7 +97,12 @@ app.post('/api/login', async (req, res) => {
 // 1. Save a new Session
 app.post('/api/history', authenticateToken, async (req, res) => {
     try {
-        const { date, startTime, duration, status, detectionsCount, detectedItems } = req.body;
+        // Destructure new fields
+        const { 
+            date, startTime, duration, status, 
+            detectionsCount, detectedItems, 
+            overallConfidence, classStats 
+        } = req.body;
 
         const newSession = new Session({
             userId: req.user.id,
@@ -99,7 +111,9 @@ app.post('/api/history', authenticateToken, async (req, res) => {
             duration,
             status,
             detectionsCount,
-            detectedItems
+            detectedItems,
+            overallConfidence, // Save overall %
+            classStats         // Save breakdown
         });
 
         await newSession.save();
