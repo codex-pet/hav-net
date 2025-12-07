@@ -174,6 +174,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import Navbar from '@/components/navbar.vue';
 
+// --- CONFIGURATION ---
+// Use the Env variable, or default to relative path '/api' for Vercel
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
+
 // --- State ---
 const searchQuery = ref('');
 const activeFilter = ref('All');
@@ -191,7 +195,8 @@ onMounted(async () => {
     const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
     if (!token) return;
     
-    const response = await axios.get('http://localhost:3000/api/history', {
+    // UPDATED: Using dynamic BACKEND_URL instead of localhost
+    const response = await axios.get(`${BACKEND_URL}/history`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     

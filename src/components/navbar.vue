@@ -88,9 +88,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios'; // <--- FIX 1: Import Axios
+import axios from 'axios'; 
 
 const router = useRouter();
+
+// --- CONFIGURATION ---
+// Use the Env variable, or default to relative path '/api' for Vercel
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
 // State
 const isLoggedIn = ref(false);
@@ -108,7 +112,8 @@ const fetchCurrentUser = async () => {
   }
 
   try {
-    const response = await axios.get('http://localhost:3000/api/user', {
+    // UPDATED: Using dynamic BACKEND_URL instead of localhost
+    const response = await axios.get(`${BACKEND_URL}/user`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -129,7 +134,6 @@ const checkLoginStatus = () => {
   const token = localStorage.getItem('havnet_token');
   isLoggedIn.value = !!token;
 
-  // <--- FIX 2: Actually call the fetch function if logged in
   if (isLoggedIn.value) {
     fetchCurrentUser(); 
   }
