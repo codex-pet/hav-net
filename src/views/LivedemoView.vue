@@ -173,9 +173,19 @@ const sessionTotalFrames = ref(0);
 const sessionStatsMap = ref({}); 
 
 // --- CONFIGURATION ---
-const API_KEY = 'RPrtUyC2Xf54HEVlYY7J'; 
-const MODEL_ENDPOINT = 'https://detect.roboflow.com/animal_vehicle_human_seg-t1sz5/1';
-const BACKEND_URL = 'http://localhost:3000/api';
+const API_KEY = import.meta.env.VITE_ROBOFLOW_PRIVATE_API_KEY; 
+const MODEL_ID = import.meta.env.VITE_ROBOFLOW_MODEL_ID;
+const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION;
+
+// Construct the endpoint dynamically
+const MODEL_ENDPOINT = `https://detect.roboflow.com/${MODEL_ID}/${MODEL_VERSION}`;
+
+// Use env var for backend, fallback to localhost if missing
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+
+// Debugging: Check console to ensure variables are loaded (remove this in production)
+console.log("Model Config Loaded:", { MODEL_ID, MODEL_VERSION, hasKey: !!API_KEY });
+
 
 // --- MODALS STATE ---
 const showInstructionModal = ref(false);
