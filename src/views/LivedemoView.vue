@@ -185,7 +185,7 @@ const MODEL_ENDPOINT = `https://detect.roboflow.com/${MODEL_ID}/${MODEL_VERSION}
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
 
 // Debugging: Check console to ensure variables are loaded (remove this in production)
-console.log("Model Config Loaded:", { MODEL_ID, MODEL_VERSION, hasKey: !!API_KEY });
+// console.log("Model Config Loaded:", { MODEL_ID, MODEL_VERSION, hasKey: !!API_KEY });
 
 
 // --- MODALS STATE ---
