@@ -141,7 +141,7 @@ import axios from 'axios';
 import Navbar from '@/components/navbar.vue';
 
 const router = useRouter();
-const BACKEND_URL = 'http://localhost:3000/api'; 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
 // --- STATE ---
 const authMode = ref('login'); 

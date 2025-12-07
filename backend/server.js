@@ -10,9 +10,20 @@ const jwt = require('jsonwebtoken');
 const app = express();
 
 // --- CONFIGURATION ---
-const PORT = process.env.PORT || 3000;
+// const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.JWT_SECRET; // Taken from .env
 const MONGODB_URI = process.env.MONGODB_URI; // Taken from .env
+
+// Only listen if NOT running on Vercel (local development)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+// Export the app for Vercel
+module.exports = app;
 
 // Safety Check
 if (!SECRET_KEY) {
