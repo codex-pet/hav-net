@@ -1,4 +1,6 @@
 // backend/server.js
+require('dotenv').config(); // <--- LOADS .ENV VARIABLES
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,15 +8,24 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const PORT = 3000;
-const SECRET_KEY = 'havnet_secret_key_123';
+
+// --- CONFIGURATION ---
+const PORT = process.env.PORT || 3000;
+const SECRET_KEY = process.env.JWT_SECRET; // Taken from .env
+const MONGODB_URI = process.env.MONGODB_URI; // Taken from .env
+
+// Safety Check
+if (!SECRET_KEY) {
+    console.error("❌ FATAL ERROR: JWT_SECRET is not defined in .env");
+    process.exit(1);
+}
 
 app.use(cors());
 app.use(express.json());
 
 // --- MONGODB ---
-mongoose.connect('mongodb://localhost:27017/havnet_db')
-    .then(() => console.log('✅ Connected to MongoDB: havnet_db'))
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // --- SCHEMAS ---
@@ -33,7 +44,7 @@ const SessionSchema = new mongoose.Schema({
     duration: { type: String, required: true },
     status: { type: String, required: true },
     detectionsCount: { type: Number, default: 0 },
-    detectedItems: [String], // Kept for searching
+    detectedItems: [String], 
     // NEW FIELDS
     overallConfidence: { type: Number, default: 0 }, 
     classStats: [{ 
@@ -92,12 +103,11 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// --- HISTORY ROUTES (NEW) ---
+// --- HISTORY ROUTES ---
 
 // 1. Save a new Session
 app.post('/api/history', authenticateToken, async (req, res) => {
     try {
-        // Destructure new fields
         const { 
             date, startTime, duration, status, 
             detectionsCount, detectedItems, 
@@ -112,8 +122,8 @@ app.post('/api/history', authenticateToken, async (req, res) => {
             status,
             detectionsCount,
             detectedItems,
-            overallConfidence, // Save overall %
-            classStats         // Save breakdown
+            overallConfidence,
+            classStats
         });
 
         await newSession.save();
@@ -127,7 +137,6 @@ app.post('/api/history', authenticateToken, async (req, res) => {
 // 2. Get User History
 app.get('/api/history', authenticateToken, async (req, res) => {
     try {
-        // Find sessions for this user, sort by newest first (reverse natural order roughly)
         const sessions = await Session.find({ userId: req.user.id }).sort({ _id: -1 });
         res.json(sessions);
     } catch (err) {
