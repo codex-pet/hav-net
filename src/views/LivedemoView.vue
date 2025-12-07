@@ -164,12 +164,18 @@ const averageConfidence = ref(0);
 const videoRef = ref(null);
 const canvasRef = ref(null);
 const wrapperRef = ref(null); 
-const isLoggedIn = ref(false); // Track login status locally
+const isLoggedIn = ref(false); 
 let intervalId = null;
+
+// --- SESSION RECORDING STATE ---
+const sessionStartTime = ref(null);
+const sessionDetections = ref(new Set()); 
+const sessionTotalCount = ref(0); 
 
 // --- CONFIGURATION ---
 const API_KEY = 'RPrtUyC2Xf54HEVlYY7J'; 
 const MODEL_ENDPOINT = 'https://detect.roboflow.com/animal_vehicle_human_seg-t1sz5/1';
+const BACKEND_URL = 'http://localhost:3000/api';
 
 // --- MODALS STATE ---
 const showInstructionModal = ref(false);
@@ -177,23 +183,26 @@ const showLoginPrompt = ref(false);
 
 // --- LIFECYCLE ---
 onMounted(() => {
-  // Check if user is logged in immediately upon mounting
-  const token = localStorage.getItem('havnet_token');
+  // Check for token under both common names to be safe
+  const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
   isLoggedIn.value = !!token;
+  
+  if(isLoggedIn.value) {
+    console.log("✅ User is logged in. History will be saved.");
+  } else {
+    console.warn("⚠️ No token found. History will NOT be saved.");
+  }
 });
 
 // --- BUTTON LOGIC ---
 const handleStartClick = () => {
   if (isLoggedIn.value) {
-    // If logged in, show instructions as usual
     showInstructionModal.value = true;
   } else {
-    // If NOT logged in, show the login prompt
     showLoginPrompt.value = true;
   }
 };
 
-// --- MODAL ACTIONS ---
 const closeModal = () => { showInstructionModal.value = false; };
 const closeLoginPrompt = () => { showLoginPrompt.value = false; };
 
@@ -204,10 +213,9 @@ const confirmStartCamera = () => {
 
 const proceedToLogin = () => {
   showLoginPrompt.value = false;
-  router.push('/login'); // Redirect to your LoginView
+  router.push('/login');
 };
 
-// --- FULLSCREEN TOGGLE ---
 const toggleFullscreen = async () => {
   if (!wrapperRef.value) return;
   if (!document.fullscreenElement) {
@@ -238,9 +246,13 @@ const startCameraLogic = async () => {
         canvasRef.value.width = w;
         canvasRef.value.height = h;
 
+        // RESET SESSION DATA
+        sessionStartTime.value = new Date();
+        sessionDetections.value = new Set();
+        sessionTotalCount.value = 0;
+        console.log("🎥 Session Started at:", sessionStartTime.value);
+
         isCameraOn.value = true;
-        
-        // 1.5 FPS (600ms) to balance API speed and fluidity
         intervalId = setInterval(captureAndDetect, 600); 
       };
     }
@@ -250,11 +262,20 @@ const startCameraLogic = async () => {
   }
 };
 
-const stopCamera = () => {
-  isCameraOn.value = false;
-  isProcessing.value = false;
-  averageConfidence.value = 0; 
+const stopCamera = async () => {
+  // 1. STOP PROCESSING FIRST
   if (intervalId) clearInterval(intervalId);
+  isProcessing.value = false;
+  
+  // 2. SAVE SESSION TO BACKEND (Wait for it to finish)
+  if (isCameraOn.value && sessionStartTime.value) {
+    console.log("🛑 Stopping camera... Attempting to save session.");
+    await saveSessionToBackend();
+  }
+
+  // 3. CLEANUP UI
+  isCameraOn.value = false;
+  averageConfidence.value = 0; 
   
   if (videoRef.value && videoRef.value.srcObject) {
     const tracks = videoRef.value.srcObject.getTracks();
@@ -264,6 +285,58 @@ const stopCamera = () => {
   
   const ctx = canvasRef.value?.getContext('2d');
   if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+};
+
+// --- BACKEND SAVE FUNCTION (DEBUGGED) ---
+const saveSessionToBackend = async () => {
+  // Try to find the token
+  const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
+  
+  if (!token) {
+    console.error("❌ Cannot save: No Login Token Found.");
+    return;
+  }
+
+  const endTime = new Date();
+  const durationMs = endTime - sessionStartTime.value;
+  
+  // Format Duration
+  const seconds = Math.floor((durationMs / 1000) % 60);
+  const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
+  const durationStr = minutes > 0 ? `${minutes} min ${seconds} sec` : `${seconds} seconds`;
+
+  // Format Date and Time
+  const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+  // Convert Set to Array for storage
+  const detectedItemsArray = Array.from(sessionDetections.value);
+
+  const payload = {
+    date: dateStr,
+    startTime: timeStr,
+    duration: durationStr,
+    status: 'Completed',
+    detectionsCount: sessionTotalCount.value,
+    detectedItems: detectedItemsArray.length > 0 ? detectedItemsArray : ['No Objects']
+  };
+
+  console.log("📤 Sending Data to Backend:", payload);
+
+  try {
+    const response = await axios.post(`${BACKEND_URL}/history`, payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    console.log("✅ SUCCESS: Session Saved to DB!", response.data);
+  } catch (error) {
+    console.error("❌ FAILED to save session:", error);
+    if (error.response) {
+       console.error("Server Response:", error.response.data);
+       if(error.response.status === 403 || error.response.status === 401) {
+           alert("Session failed to save: Your login session has expired. Please login again.");
+       }
+    }
+  }
 };
 
 // --- API LOOP ---
@@ -290,9 +363,16 @@ const captureAndDetect = async () => {
     });
 
     const predictions = response.data.predictions;
+    
+    // UPDATE SESSION STATS
     if (predictions.length > 0) {
       const total = predictions.reduce((acc, curr) => acc + curr.confidence, 0);
       averageConfidence.value = total / predictions.length;
+      
+      // Add unique items (e.g., "Human")
+      predictions.forEach(p => sessionDetections.value.add(p.class));
+      // Increment total counter
+      sessionTotalCount.value += predictions.length;
     } else {
       averageConfidence.value = 0;
     }
