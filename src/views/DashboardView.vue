@@ -1,19 +1,7 @@
 <template>
   <div class="dashboard-container">
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-      <div class="logo">
-        <img src="@/assets/img/logo.png" alt="HAV-Net Logo" class="logo-img" />
-        <span>HAV - Net</span>
-      </div>
-      <div class="nav-links">
-        <router-link to="/">Home</router-link>
-        <router-link to="/live-demo">Live Demo</router-link>
-        <router-link to="/history">History</router-link>
-        <router-link to="/about">About Us</router-link>
-      </div>
-      <button class="login-btn">Login</button>
-    </nav>
+    <!-- Navigation Bar Component -->
+    <Navbar />
 
     <!-- Hero Section (UPDATED) -->
     <header class="hero">
@@ -33,10 +21,6 @@
 
       <!-- Right Side: Image (NEW) -->
       <div class="hero-image-container">
-        <!-- 
-           TIP: Replace this URL with a local image like: src="@/assets/img/hero-illustration.png" 
-           A transparent PNG of a drone, robot, or neural network mesh looks best here.
-        -->
         <img 
           src="../assets/img/bounding-box.jpg" 
           alt="AI Object Detection Visual" 
@@ -90,7 +74,8 @@
 </template>
 
 <script setup>
-// Script logic remains the same
+// Import the separated Navbar component
+import Navbar from '@/components/navbar.vue'; 
 </script>
 
 <style lang="scss" scoped>
@@ -99,7 +84,7 @@ $bg-color: #050b14;
 $text-color: #e2e8f0;
 $accent-color: #3b82f6;
 $card-bg: #0f172a;
-$nav-height: 80px;
+/* $nav-height is no longer needed here, but kept if you do math with it */
 
 .dashboard-container {
   background-color: $bg-color;
@@ -107,63 +92,21 @@ $nav-height: 80px;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
   padding: 0 5%;
-  overflow-x: hidden; /* Prevent scrollbar if image is too big */
-}
-
-/* Navbar */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: $nav-height;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-
-  .logo {
-    display: flex;
-    align-items: center;
-    font-weight: 700;
-    font-size: 1.2rem;
-    color: #fff;
-    .logo-img { height: 30px; margin-right: 10px; }
-  }
-
-  .nav-links {
-    a {
-      color: $text-color;
-      text-decoration: none;
-      margin: 0 20px;
-      font-size: 0.9rem;
-      transition: color 0.3s;
-      &:hover, &.router-link-active { color: $accent-color; }
-    }
-  }
-
-  .login-btn {
-    background-color: $accent-color;
-    color: white;
-    border: none;
-    padding: 8px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    &:hover { background-color: darken($accent-color, 10%); }
-  }
+  overflow-x: hidden;
 }
 
 /* --- HERO SECTION UPDATED --- */
 .hero {
-  /* Flexbox to put text and image side by side */
   display: flex;
   align-items: center; 
   justify-content: space-between;
-  gap: 40px; /* Space between the text and the image */
+  gap: 40px; 
   padding: 80px 0 60px;
-  max-width: 1200px; /* Increased width to accommodate image */
+  max-width: 1200px;
   margin: 0 auto;
 
-  /* Left Column */
   .hero-content {
-    flex: 1; /* Takes up available space */
+    flex: 1; 
     max-width: 650px;
 
     h1 {
@@ -213,9 +156,8 @@ $nav-height: 80px;
     }
   }
 
-  /* Right Column (Image) */
   .hero-image-container {
-    flex: 1; /* Takes up equal space */
+    flex: 1; 
     display: flex;
     justify-content: center;
     align-items: center;
@@ -223,16 +165,14 @@ $nav-height: 80px;
     .hero-img {
       max-width: 100%;
       height: auto;
-      max-height: 450px; /* Keeps it from getting too tall */
+      max-height: 450px; 
       object-fit: contain;
-      /* Optional: Adds a subtle blue glow to fit the theme */
       filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.2));
       animation: float 6s ease-in-out infinite;
     }
   }
 }
 
-/* Floating Animation for the image */
 @keyframes float {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-15px); }
@@ -287,7 +227,7 @@ $nav-height: 80px;
 /* Mobile Responsiveness */
 @media (max-width: 900px) {
   .hero {
-    flex-direction: column; /* Stack them vertically on mobile */
+    flex-direction: column;
     text-align: center;
     
     .hero-content {
@@ -303,7 +243,6 @@ $nav-height: 80px;
 }
 
 @media (max-width: 768px) {
-  .navbar .nav-links { display: none; }
   .hero h1 { font-size: 2.5rem; }
 }
 </style>

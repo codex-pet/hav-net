@@ -1,19 +1,7 @@
 <template>
   <div class="about-container">
-    <!-- Navigation (Reused) -->
-    <nav class="navbar">
-      <div class="logo">
-        <img src="@/assets/img/logo.png" alt="HAV-Net Logo" class="logo-img" />
-        <span>HAV - Net</span>
-      </div>
-      <div class="nav-links">
-        <router-link to="/">Home</router-link>
-        <router-link to="/live-demo">Live Demo</router-link>
-        <router-link to="/history">History</router-link>
-        <router-link to="/about" class="active">About Us</router-link>
-      </div>
-      <button class="login-btn">Contact</button>
-    </nav>
+    <!-- Navigation Component -->
+    <Navbar />
 
     <!-- Main Content -->
     <main class="main-content">
@@ -151,7 +139,8 @@
 </template>
 
 <script setup>
-// No reactive state needed for this static view
+// Import the separated Navbar component
+import Navbar from '@/components/navbar.vue';
 </script>
 
 <style lang="scss" scoped>
@@ -173,21 +162,7 @@ $text-muted: #94a3b8;
   flex-direction: column;
 }
 
-/* Navbar (Reused) */
-.navbar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0 5%; height: 70px;
-  background-color: rgba(5, 11, 20, 0.95);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  
-  .logo { display: flex; align-items: center; font-weight: 700; color: #fff; gap: 10px; }
-  .logo-img { height: 24px; }
-  .nav-links a { 
-    color: $text-muted; margin: 0 15px; text-decoration: none; font-size: 0.9rem;
-    &.active, &:hover { color: $accent-blue; }
-  }
-  .login-btn { background: $accent-blue; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; }
-}
+/* Navbar styles removed - handled by component */
 
 /* Main Content */
 .main-content {
@@ -388,7 +363,6 @@ $text-muted: #94a3b8;
 
 /* Responsive */
 @media (max-width: 768px) {
-  .navbar .nav-links { display: none; }
   .header-section h1 { font-size: 2rem; }
   .contributors-grid { grid-template-columns: 1fr; }
 }

@@ -1,19 +1,7 @@
 <template>
   <div class="history-container">
-    <!-- Navigation (Reused) -->
-    <nav class="navbar">
-      <div class="logo">
-        <img src="@/assets/img/logo.png" alt="HAV-Net Logo" class="logo-img" />
-        <span>HAV - Net</span>
-      </div>
-      <div class="nav-links">
-        <router-link to="/">Home</router-link>
-        <router-link to="/live-demo">Live Demo</router-link>
-        <router-link to="/history" class="active">History</router-link>
-        <router-link to="/about">About Us</router-link>
-      </div>
-      <button class="login-btn">Contact</button>
-    </nav>
+    <!-- Navigation Component -->
+    <Navbar />
 
     <main class="main-content">
       <!-- Header -->
@@ -106,12 +94,14 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+// Import the separated Navbar component
+import Navbar from '@/components/navbar.vue';
 
 // --- State ---
 const searchQuery = ref('');
 const currentPage = ref(1);
 
-// --- Mock Data (Based on your Screenshot) ---
+// --- Mock Data ---
 const sessions = ref([
   { id: 1, status: 'Completed', date: 'Oct 28, 2025', startTime: '14:30', duration: '15 minutes', detections: 12 },
   { id: 2, status: 'Completed', date: 'Oct 25, 2025', startTime: '11:05', duration: '30 minutes', detections: 25 },
@@ -137,7 +127,7 @@ const filteredSessions = computed(() => {
 $bg-dark: #050b14;
 $bg-panel: #0f172a;
 $accent-blue: #3b82f6;
-$accent-purple: #8b5cf6; /* Used for the secondary card border */
+$accent-purple: #8b5cf6; 
 $text-main: #e2e8f0;
 $text-muted: #94a3b8;
 $border-color: #1e293b;
@@ -154,21 +144,7 @@ $status-red: #ef4444;
   flex-direction: column;
 }
 
-/* Navbar (Reused) */
-.navbar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0 5%; height: 70px;
-  background-color: rgba(5, 11, 20, 0.95);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  
-  .logo { display: flex; align-items: center; font-weight: 700; color: #fff; gap: 10px; }
-  .logo-img { height: 24px; }
-  .nav-links a { 
-    color: $text-muted; margin: 0 15px; text-decoration: none; font-size: 0.9rem;
-    &.active, &:hover { color: $accent-blue; }
-  }
-  .login-btn { background: $accent-blue; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; }
-}
+/* Navbar styles removed - handled by component */
 
 /* Main Content */
 .main-content {
@@ -391,11 +367,7 @@ $status-red: #ef4444;
 
 /* Responsive */
 @media (max-width: 768px) {
-  .navbar .nav-links { display: none; }
   .stats-grid { grid-template-columns: 1fr; }
   .table-container { border: none; background: transparent; }
-  
-  /* On mobile, standard tables can be tough. 
-     Horizontal scroll is handled by overflow-x: auto on container */
 }
 </style>

@@ -1,19 +1,7 @@
 <template>
   <div class="live-demo-container">
-    <!-- Navigation -->
-    <nav class="navbar">
-      <div class="logo">
-        <img src="@/assets/img/logo.png" alt="HAV-Net Logo" class="logo-img" />
-        <span>HAV - Net</span>
-      </div>
-      <div class="nav-links">
-        <router-link to="/">Home</router-link>
-        <router-link to="/live-demo" class="active">Live Demo</router-link>
-        <router-link to="/history">History</router-link>
-        <router-link to="/about">About Us</router-link>
-      </div>
-      <button class="login-btn">Login</button>
-    </nav>
+    <!-- Navigation Component -->
+    <Navbar />
 
     <!-- Main Content -->
     <main class="main-content">
@@ -30,20 +18,24 @@
         <div class="camera-section">
           <h2>Real-Time Object Detection</h2>
           
-          <!-- Wrapper referenced for Fullscreen -->
           <div ref="wrapperRef" class="video-wrapper">
-            
             <!-- Video & Canvas -->
             <video ref="videoRef" autoplay muted playsinline class="video-feed" :class="{ hidden: !isCameraOn }"></video>
             <canvas ref="canvasRef" class="video-overlay" :class="{ hidden: !isCameraOn }"></canvas>
 
-            <!-- Analyzing Indicator (Shows when API is working) -->
+            <!-- 1. AVG CONFIDENCE BADGE -->
+            <div v-if="isCameraOn && averageConfidence > 0" class="confidence-badge">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Avg Confidence: {{ Math.round(averageConfidence * 100) }}%</span>
+            </div>
+
+            <!-- 2. ANALYZING INDICATOR -->
             <div v-if="isCameraOn && isProcessing" class="status-badge">
               <div class="spinner"></div>
               <span>Analyzing...</span>
             </div>
 
-            <!-- Placeholder State (When Camera is Off) -->
+            <!-- Placeholder State -->
             <div v-if="!isCameraOn" class="camera-placeholder">
               <div class="icon-circle">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -63,19 +55,17 @@
           </p>
 
           <div class="controls">
-            <!-- Start Button -->
-            <button @click="openInstructions" :disabled="isCameraOn" class="btn btn-primary">
+            <!-- UPDATED: Checks auth before opening instructions -->
+            <button @click="handleStartClick" :disabled="isCameraOn" class="btn btn-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
               Start Camera
             </button>
             
-            <!-- Stop Button -->
             <button @click="stopCamera" :disabled="!isCameraOn" class="btn btn-secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
               Stop
             </button>
 
-            <!-- Fullscreen Button -->
              <button @click="toggleFullscreen" :disabled="!isCameraOn" class="btn btn-secondary" title="Fullscreen">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
             </button>
@@ -85,53 +75,29 @@
         <!-- RIGHT COLUMN: Limitations -->
         <div class="limitations-section">
           <h2>Project Limitations</h2>
-          
+          <!-- Limitation Cards (Same as before) -->
           <div class="limitation-card">
-            <div class="icon-box blue">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            </div>
-            <div class="content">
-              <h3>Limited Dataset Scope</h3>
-              <p>Trained specifically on Humans, common Animals (dogs, elephants, chickens), and Vehicles. Rare species may have lower confidence.</p>
-            </div>
+            <div class="icon-box blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+            <div class="content"><h3>Limited Dataset Scope</h3><p>Trained specifically on Humans, common Animals, and Vehicles. Rare species may have lower confidence.</p></div>
           </div>
-
           <div class="limitation-card">
-            <div class="icon-box purple">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
-            </div>
-            <div class="content">
-              <h3>Environmental Occlusion</h3>
-              <p>The model may still struggle with objects heavily obscured by window frames or dense foliage.</p>
-            </div>
+            <div class="icon-box purple"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg></div>
+            <div class="content"><h3>Environmental Occlusion</h3><p>The model may still struggle with objects heavily obscured by window frames or dense foliage.</p></div>
           </div>
-
           <div class="limitation-card">
-            <div class="icon-box blue-light">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5v.01"/><path d="M16 16v.01"/><path d="M12 12v.01"/></svg>
-            </div>
-            <div class="content">
-              <h3>Cloud API Latency</h3>
-              <p>We use cloud processing for maximum accuracy. Frame rate depends on your internet connection speed.</p>
-            </div>
+            <div class="icon-box blue-light"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5v.01"/><path d="M16 16v.01"/><path d="M12 12v.01"/></svg></div>
+            <div class="content"><h3>Cloud API Latency</h3><p>We use cloud processing for maximum accuracy. Frame rate depends on your internet connection speed.</p></div>
           </div>
-
            <div class="limitation-card">
-            <div class="icon-box blue-dark">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/></svg>
-            </div>
-            <div class="content">
-              <h3>Lighting Conditions</h3>
-              <p>Extreme backlighting or very low-light scenarios can lead to false negatives.</p>
-            </div>
+            <div class="icon-box blue-dark"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/></svg></div>
+            <div class="content"><h3>Lighting Conditions</h3><p>Extreme backlighting or very low-light scenarios can lead to false negatives.</p></div>
           </div>
-
         </div>
       </div>
     </main>
     
-    <!-- === OLD INSTRUCTION MODAL RESTORED === -->
-    <div v-if="showModal" class="modal-overlay">
+    <!-- === 1. INSTRUCTION MODAL (Only shows if logged in) === -->
+    <div v-if="showInstructionModal" class="modal-overlay">
       <div class="modal-content">
         <div class="modal-header">
           <h3>How to Use the Live Camera Feature</h3>
@@ -139,42 +105,43 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        
         <p class="modal-subtitle">Follow these steps to ensure the best experience with our live detection model.</p>
-        
         <div class="steps-list">
-          <!-- Step 1 -->
-          <div class="step-item">
-            <div class="step-number">1</div>
-            <div class="step-text">
-              <h4>Allow Camera Access</h4>
-              <p>When prompted by your browser please grant permission to access your camera.</p>
-            </div>
-          </div>
-          
-          <!-- Step 2 -->
-          <div class="step-item">
-            <div class="step-number">2</div>
-            <div class="step-text">
-              <h4>Position Yourself</h4>
-              <p>Sit in a well-lit area and position your face or object clearly in the center of the camera view.</p>
-            </div>
-          </div>
-          
-          <!-- Step 3 -->
-          <div class="step-item">
-            <div class="step-number">3</div>
-            <div class="step-text">
-              <h4>Keep Objects in Frame</h4>
-              <p>For best results, ensure the object you want to be detected remains fully within the camera frame.</p>
-            </div>
-          </div>
+          <div class="step-item"><div class="step-number">1</div><div class="step-text"><h4>Allow Camera Access</h4><p>When prompted by your browser please grant permission to access your camera.</p></div></div>
+          <div class="step-item"><div class="step-number">2</div><div class="step-text"><h4>Position Yourself</h4><p>Sit in a well-lit area and position your face or object clearly in the center of the camera view.</p></div></div>
+          <div class="step-item"><div class="step-number">3</div><div class="step-text"><h4>Keep Objects in Frame</h4><p>For best results, ensure the object you want to be detected remains fully within the camera frame.</p></div></div>
         </div>
-        
         <button @click="confirmStartCamera" class="modal-action-btn">Start Now</button>
       </div>
     </div>
-    <!-- === END MODAL === -->
+
+    <!-- === 2. LOGIN REQUIRED MODAL (New) === -->
+    <div v-if="showLoginPrompt" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Authentication Required</h3>
+          <button @click="closeLoginPrompt" class="close-icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+        
+        <p class="modal-subtitle">You must be logged in to use the Live Camera feature.</p>
+        
+        <div class="steps-list">
+           <div class="step-item" style="align-items: center;">
+             <div class="step-number" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+             </div>
+             <div class="step-text">
+               <h4>Account Needed</h4>
+               <p>Please log in or create an account to access advanced AI detection features.</p>
+             </div>
+           </div>
+        </div>
+
+        <button @click="proceedToLogin" class="modal-action-btn">Login / Sign Up</button>
+      </div>
+    </div>
 
     <footer class="footer">
       <p>2025 AI Vision Project. All Rights Reserved.</p>
@@ -183,26 +150,62 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios'; 
+import Navbar from '@/components/navbar.vue';
+
+const router = useRouter();
 
 // --- STATE ---
 const isCameraOn = ref(false);
 const isProcessing = ref(false); 
+const averageConfidence = ref(0); 
 const videoRef = ref(null);
 const canvasRef = ref(null);
 const wrapperRef = ref(null); 
+const isLoggedIn = ref(false); // Track login status locally
 let intervalId = null;
 
 // --- CONFIGURATION ---
 const API_KEY = 'RPrtUyC2Xf54HEVlYY7J'; 
 const MODEL_ENDPOINT = 'https://detect.roboflow.com/animal_vehicle_human_seg-t1sz5/1';
 
-// --- MODAL & CONTROLS ---
-const showModal = ref(false);
-const openInstructions = () => { showModal.value = true; };
-const closeModal = () => { showModal.value = false; };
-const confirmStartCamera = () => { closeModal(); startCameraLogic(); };
+// --- MODALS STATE ---
+const showInstructionModal = ref(false);
+const showLoginPrompt = ref(false);
+
+// --- LIFECYCLE ---
+onMounted(() => {
+  // Check if user is logged in immediately upon mounting
+  const token = localStorage.getItem('havnet_token');
+  isLoggedIn.value = !!token;
+});
+
+// --- BUTTON LOGIC ---
+const handleStartClick = () => {
+  if (isLoggedIn.value) {
+    // If logged in, show instructions as usual
+    showInstructionModal.value = true;
+  } else {
+    // If NOT logged in, show the login prompt
+    showLoginPrompt.value = true;
+  }
+};
+
+// --- MODAL ACTIONS ---
+const closeModal = () => { showInstructionModal.value = false; };
+const closeLoginPrompt = () => { showLoginPrompt.value = false; };
+
+const confirmStartCamera = () => { 
+  closeModal(); 
+  startCameraLogic(); 
+};
+
+const proceedToLogin = () => {
+  showLoginPrompt.value = false;
+  router.push('/login'); // Redirect to your LoginView
+};
 
 // --- FULLSCREEN TOGGLE ---
 const toggleFullscreen = async () => {
@@ -250,6 +253,7 @@ const startCameraLogic = async () => {
 const stopCamera = () => {
   isCameraOn.value = false;
   isProcessing.value = false;
+  averageConfidence.value = 0; 
   if (intervalId) clearInterval(intervalId);
   
   if (videoRef.value && videoRef.value.srcObject) {
@@ -285,7 +289,15 @@ const captureAndDetect = async () => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
-    drawPredictions(response.data.predictions);
+    const predictions = response.data.predictions;
+    if (predictions.length > 0) {
+      const total = predictions.reduce((acc, curr) => acc + curr.confidence, 0);
+      averageConfidence.value = total / predictions.length;
+    } else {
+      averageConfidence.value = 0;
+    }
+
+    drawPredictions(predictions);
 
   } catch (error) {
     console.warn("API Error:", error);
@@ -373,18 +385,7 @@ $text-muted: #94a3b8;
   flex-direction: column;
 }
 
-/* Navbar */
-.navbar {
-  display: flex; justify-content: space-between; align-items: center; padding: 0 5%; height: 70px;
-  background-color: rgba(5, 11, 20, 0.95); border-bottom: 1px solid rgba(255,255,255,0.1);
-  .logo { display: flex; align-items: center; font-weight: 700; color: #fff; gap: 10px; }
-  .logo-img { height: 24px; }
-  .nav-links a { 
-    color: $text-muted; margin: 0 15px; text-decoration: none; font-size: 0.9rem;
-    &.active, &:hover { color: $accent-blue; }
-  }
-  .login-btn { background: $accent-blue; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: 600; }
-}
+/* Navbar handled by Component */
 
 /* Main Content */
 .main-content {
@@ -414,6 +415,7 @@ $text-muted: #94a3b8;
       width: 100vw; height: 100vh; border-radius: 0; border: none; display: flex; align-items: center; justify-content: center; background: black;
       .video-feed, .video-overlay { width: auto; height: 100%; aspect-ratio: 4/3; }
       .status-badge { top: 20px; right: 20px; font-size: 1rem; padding: 8px 16px; }
+      .confidence-badge { top: 20px; left: 20px; font-size: 1rem; padding: 8px 16px; }
     }
 
     .video-feed {
@@ -431,6 +433,14 @@ $text-muted: #94a3b8;
       padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
       font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
       .spinner { width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    }
+
+    /* Avg Confidence Badge */
+    .confidence-badge {
+      position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
+      font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
+      .icon { color: $accent-blue; }
     }
 
     .camera-placeholder {
@@ -486,7 +496,7 @@ $text-muted: #94a3b8;
   }
 }
 
-/* --- MODAL (Restored Old Design) --- */
+/* --- MODAL SHARED STYLES --- */
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
   z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px;
