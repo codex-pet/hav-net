@@ -128,9 +128,7 @@
       </div>
     </main>
 
-    <footer class="footer">
-      <p>2025 AI Vision Project. All Rights Reserved.</p>
-    </footer>
+    <Footer />
   </div>
 </template>
 
@@ -139,6 +137,7 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import Navbar from '@/components/navbar.vue';
+import Footer from '@/components/footer.vue';
 
 const router = useRouter();
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
@@ -366,8 +365,6 @@ $error-color: #ef4444;
   p { color: $text-muted; font-size: 0.9rem; }
   a { color: $accent-blue; text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } }
 }
-
-.footer { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: #475569; margin-top: auto; }
 
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
