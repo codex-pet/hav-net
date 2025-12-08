@@ -45,7 +45,8 @@
                 <span class="skill-tag">Vue.js</span>
                 <span class="skill-tag">Node.js</span>
                 <span class="skill-tag">Python</span>
-                <span class="skill-tag">Mongo-DB</span>
+                <span class="skill-tag">MongoDB</span>
+                <span class="skill-tag">Express.js</span>
               </div>
             </div>
           </div>
