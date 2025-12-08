@@ -72,11 +72,15 @@
         </div>
       </div>
     </section>
+
+    <Footer />
   </div>
 </template>
 
 <script setup>
 import Navbar from '@/components/navbar.vue'; 
+import Footer from '@/components/footer.vue'; 
+
 
 // Function to handle opening the documentation
 const openDocs = () => {
@@ -192,6 +196,7 @@ $card-bg: #0f172a;
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px 5%;
+  margin-bottom: 40px;
 
   .text-block {
     margin-bottom: 50px;

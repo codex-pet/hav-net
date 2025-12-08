@@ -168,9 +168,8 @@
       </div>
     </div>
 
-    <footer class="footer">
-      <p>2025 AI Vision Project. All Rights Reserved.</p>
-    </footer>
+    <!-- New Footer Component -->
+    <Footer />
   </div>
 </template>
 
@@ -179,6 +178,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios'; 
 import Navbar from '@/components/navbar.vue';
+import Footer from '@/components/footer.vue'; // Imported Footer
 
 const router = useRouter();
 
@@ -693,7 +693,6 @@ $text-muted: #94a3b8;
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .hidden { display: none !important; }
-.footer { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: #475569; }
 
 @media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } }
 </style>

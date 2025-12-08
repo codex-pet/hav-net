@@ -205,7 +205,7 @@ $nav-height: 80px;
     text-decoration: none;
     z-index: 51;
     
-    .logo-img { height: 30px; margin-right: 10px; }
+    .logo-img { height: 45px; margin-right: 15px; }
   }
 
   /* Desktop Links */

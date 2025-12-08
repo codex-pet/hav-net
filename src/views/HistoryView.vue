@@ -163,9 +163,8 @@
       </div>
     </div>
 
-    <footer class="footer">
-      <p>2025 AI Vision Project. All Rights Reserved.</p>
-    </footer>
+    <!-- NEW Footer Component -->
+    <Footer />
   </div>
 </template>
 
@@ -173,6 +172,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import Navbar from '@/components/navbar.vue';
+import Footer from '@/components/footer.vue'; // Imported Footer
 
 // --- CONFIGURATION ---
 // Use the Env variable, or default to relative path '/api' for Vercel
@@ -402,7 +402,6 @@ $status-red: #ef4444;
 .total-count { text-align: right; font-size: 0.85rem; color: $text-muted; }
 .modal-action-btn { width: 100%; background: $accent-blue; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; &:hover { background: darken($accent-blue, 10%); } }
 .empty-state { text-align: center; color: $text-muted; padding: 40px; }
-.footer { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: #475569; margin-top: auto; }
 
 /* === RESPONSIVE TABLE (CARD VIEW) === */
 @media (max-width: 768px) {
