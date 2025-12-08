@@ -27,8 +27,12 @@
 
         <!-- Mobile: Hamburger Menu (Hidden on Desktop) -->
         <div class="profile-container mobile-only" @click="toggleDropdown">
-          <div class="hamburger-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          
+          <!-- UPDATED: Animated Hamburger Icon -->
+          <div class="hamburger-icon" :class="{ 'active': showDropdown }">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
           </div>
 
           <!-- Mobile Dropdown (Logged Out) -->
@@ -93,7 +97,6 @@ import axios from 'axios';
 const router = useRouter();
 
 // --- CONFIGURATION ---
-// Use the Env variable, or default to relative path '/api' for Vercel
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
 // State
@@ -105,23 +108,18 @@ const userEmail = ref('');
 const fetchCurrentUser = async () => {
   const token = localStorage.getItem('havnet_token');
   
-  // If no token, user isn't logged in
   if (!token) {
     userEmail.value = 'Guest';
     return;
   }
 
   try {
-    // UPDATED: Using dynamic BACKEND_URL instead of localhost
     const response = await axios.get(`${BACKEND_URL}/user`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
-    // Set the email from response
     userEmail.value = response.data.email;
   } catch (error) {
     console.error("Failed to fetch user", error);
-    // Optional: If token is expired/invalid, force logout
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
         handleLogout();
     }
@@ -153,7 +151,7 @@ const handleLogout = () => {
   localStorage.removeItem('havnet_token');
   isLoggedIn.value = false;
   showDropdown.value = false;
-  userEmail.value = ''; // Clear email on logout
+  userEmail.value = '';
   router.push('/login');
   window.dispatchEvent(new Event('auth-change'));
 };
@@ -269,11 +267,42 @@ $nav-height: 80px;
     }
   }
 
+  /* --- ANIMATED HAMBURGER STYLES --- */
   .hamburger-icon {
     color: $text-color;
+    flex-direction: column; /* Stack lines vertically */
+    gap: 6px; /* Spacing between lines */
+
     &:hover {
       color: $accent-color;
       background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Individual Lines */
+    .line {
+      width: 20px;
+      height: 2px;
+      background-color: currentColor;
+      border-radius: 2px;
+      transition: all 0.3s ease-in-out;
+      transform-origin: center;
+    }
+
+    /* Active State (The X Animation) */
+    &.active {
+      .line:nth-child(1) {
+        /* Move down and rotate */
+        transform: translateY(8px) rotate(45deg);
+      }
+      .line:nth-child(2) {
+        /* Fade out and slide slightly */
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      .line:nth-child(3) {
+        /* Move up and rotate */
+        transform: translateY(-8px) rotate(-45deg);
+      }
     }
   }
 
@@ -297,9 +326,8 @@ $nav-height: 80px;
       font-size: 0.8rem;
     }
 
-    /* --- KEY FIX: Hidden by default on Desktop --- */
     .mobile-nav-list {
-      display: none; /* Changed from flex to none */
+      display: none; 
       flex-direction: column;
       
       a {
@@ -372,7 +400,6 @@ $nav-height: 80px;
   
   .navbar { padding: 0 15px; }
 
-  /* --- KEY FIX: Show the list ONLY on Mobile --- */
   .profile-container .dropdown-menu .mobile-nav-list {
       display: flex;
   }
