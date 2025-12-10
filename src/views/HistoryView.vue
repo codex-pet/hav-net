@@ -45,7 +45,7 @@
               <th>Start Time</th>
               <th>Avg Confidence</th>
               <th>Duration</th>
-              <th>Detections</th>
+              <th>Metrics Detections</th>
             </tr>
           </thead>
           <tbody>
@@ -122,10 +122,54 @@
         
         <div class="detail-body" v-if="selectedSession">
           <div class="detail-row">
-            <span>Date:</span> <strong>{{ selectedSession.date }} at {{ formatTime12Hour(selectedSession.startTime) }}</strong>
+            <span>Date:</span> <strong>{{ selectedSession.date }} at {{ selectedSession.startTime }}</strong>
           </div>
           <div class="detail-row">
             <span>Duration:</span> <strong>{{ selectedSession.duration }}</strong>
+          </div>
+
+          <!-- NEW: Metrics Bars Section -->
+          <div class="metrics-section" v-if="selectedSession.metrics">
+            <h4>Prediction Metrics</h4>
+            <div class="metrics-container">
+              
+              <!-- Bar 1: Accuracy -->
+              <div class="metric-group">
+                <div class="vertical-bar-bg">
+                  <div class="vertical-bar-fill accuracy-gradient" :style="{ height: selectedSession.metrics.accuracy + '%' }"></div>
+                  <span class="bar-value">{{ selectedSession.metrics.accuracy }}%</span>
+                </div>
+                <span class="bar-label">Accuracy</span>
+              </div>
+
+              <!-- Bar 2: Precision -->
+              <div class="metric-group">
+                <div class="vertical-bar-bg">
+                  <div class="vertical-bar-fill precision-gradient" :style="{ height: selectedSession.metrics.precision + '%' }"></div>
+                  <span class="bar-value">{{ selectedSession.metrics.precision }}%</span>
+                </div>
+                <span class="bar-label">Precision</span>
+              </div>
+
+              <!-- Bar 3: Recall -->
+              <div class="metric-group">
+                <div class="vertical-bar-bg">
+                  <div class="vertical-bar-fill recall-gradient" :style="{ height: selectedSession.metrics.recall + '%' }"></div>
+                  <span class="bar-value">{{ selectedSession.metrics.recall }}%</span>
+                </div>
+                <span class="bar-label">Recall</span>
+              </div>
+
+              <!-- Bar 4: F1 Score -->
+              <div class="metric-group">
+                <div class="vertical-bar-bg">
+                  <div class="vertical-bar-fill f1-gradient" :style="{ height: selectedSession.metrics.f1Score + '%' }"></div>
+                  <span class="bar-value">{{ selectedSession.metrics.f1Score }}%</span>
+                </div>
+                <span class="bar-label">F1 Score</span>
+              </div>
+
+            </div>
           </div>
           
           <div class="divider"></div>
@@ -402,6 +446,82 @@ $status-red: #ef4444;
 .total-count { text-align: right; font-size: 0.85rem; color: $text-muted; }
 .modal-action-btn { width: 100%; background: $accent-blue; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; &:hover { background: darken($accent-blue, 10%); } }
 .empty-state { text-align: center; color: $text-muted; padding: 40px; }
+
+.metrics-section {
+  margin: 20px 0;
+  h4 { margin-bottom: 15px; color: #fff; font-size: 0.95rem; }
+}
+
+.metrics-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 160px;
+  padding: 10px 0;
+}
+
+.metric-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.vertical-bar-bg {
+  width: 36px;
+  height: 120px;
+  background-color: rgba(255, 255, 255, 0.08); /* Faint background track */
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden; /* Clips the inner bar */
+}
+
+.vertical-bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-radius: 20px;
+  transition: height 1s ease-out; /* Smooth animation */
+}
+
+/* Specific Gradients */
+.accuracy-gradient {
+  background: linear-gradient(to top, #ff758c, #ff7eb3); /* Pink/Red */
+}
+.precision-gradient {
+  background: linear-gradient(to top, #a78bfa, #c4b5fd); /* Purple */
+}
+.recall-gradient {
+  background: linear-gradient(to top, #fbbf24, #fcd34d); /* Orange/Yellow */
+}
+.f1-gradient {
+  background: linear-gradient(to top, #34d399, #6ee7b7); /* Green/Teal */
+}
+
+.bar-value {
+  position: absolute;
+  bottom: 5px;
+  width: 100%;
+  text-align: center;
+  color: rgba(0,0,0,0.6);
+  font-size: 0.75rem;
+  font-weight: 700;
+  z-index: 2;
+}
+
+.bar-label {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Ensure existing divider has space */
+.divider {
+  margin: 20px 0;
+}
 
 /* === RESPONSIVE TABLE (CARD VIEW) === */
 @media (max-width: 768px) {

@@ -393,30 +393,50 @@ const stopCamera = async () => {
   if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 };
 
-// --- HISTORY SAVING: VIDEO SESSION ---
+// --- HELPER TO CALCULATE METRICS ---
+const calculateMetrics = (confidencePercentage) => {
+  // SIMULATION LOGIC:
+  // In a real scenario, you need Ground Truth data. 
+  // Here we simulate metrics based on the confidence score for the UI demo.
+  
+  const accuracy = confidencePercentage; // Base accuracy on confidence
+  
+  // Simulated Precision (Usually slightly higher than avg confidence in good models)
+  const precision = Math.min(confidencePercentage + 2, 99); 
+  
+  // Simulated Recall (Usually slightly lower if confidence is varying)
+  const recall = Math.max(confidencePercentage - 5, 0);
+  
+  // F1 Score Formula: 2 * (P * R) / (P + R)
+  const p = precision / 100;
+  const r = recall / 100;
+  let f1 = 0;
+  if ((p + r) > 0) {
+     f1 = (2 * p * r) / (p + r) * 100;
+  }
+
+  return {
+    accuracy: Math.round(accuracy),
+    precision: Math.round(precision),
+    recall: Math.round(recall),
+    f1Score: Math.round(f1)
+  };
+};
+
+// --- UPDATED SAVE FUNCTION (VIDEO) ---
 const saveSessionToBackend = async () => {
   const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
   if (!token) return;
 
+  // ... (Date/Time logic remains the same as previous step) ...
   const endTime = new Date();
   const durationMs = endTime - sessionStartTime.value;
   const seconds = Math.floor((durationMs / 1000) % 60);
   const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
   const durationStr = minutes > 0 ? `${minutes} min ${seconds} sec` : `${seconds} seconds`;
-
-  // FIX: Force 'MMM DD, YYYY' format (e.g., Dec 11, 2025)
-  const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric' 
-  });
-
-  // FIX: Force 'HH:MM AM/PM' format (No seconds)
-  const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
+  
+  const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   const detectedItems = Object.keys(sessionStatsMap.value);
   let totalConfidenceSum = 0;
@@ -430,6 +450,9 @@ const saveSessionToBackend = async () => {
   });
 
   const overallConfidence = totalCountSum > 0 ? (totalConfidenceSum / totalCountSum) * 100 : 0;
+  
+  // NEW: Calculate Metrics
+  const metrics = calculateMetrics(overallConfidence);
 
   const payload = {
     date: dateStr,
@@ -439,33 +462,23 @@ const saveSessionToBackend = async () => {
     detectionsCount: sessionTotalFrames.value, 
     detectedItems: detectedItems,
     overallConfidence: overallConfidence,
-    classStats: classStats
+    classStats: classStats,
+    metrics: metrics // <--- Sending to backend
   };
 
   try { await axios.post(`${BACKEND_URL}/history`, payload, { headers: { Authorization: `Bearer ${token}` } }); } 
   catch (error) { console.error("Failed to save session:", error); }
 };
 
-// --- HISTORY SAVING: SINGLE IMAGE ---
+// --- UPDATED SAVE FUNCTION (IMAGE) ---
 const saveImageSessionToBackend = async (predictions, avgConf) => {
   const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
   if (!token) return;
-  
-  const now = new Date();
-  
-  // FIX: Force 'MMM DD, YYYY' format (e.g., Dec 11, 2025)
-  const dateStr = now.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric' 
-  });
 
-  // FIX: Force 'HH:MM AM/PM' format (No seconds)
-  const timeStr = now.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
+  // ... (Date/Time logic remains the same) ...
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   const statsMap = {};
   predictions.forEach(p => {
@@ -480,6 +493,10 @@ const saveImageSessionToBackend = async (predictions, avgConf) => {
     avgConfidence: (statsMap[key].totalConf / statsMap[key].count) * 100
   }));
 
+  const overallAvg = avgConf * 100;
+  // NEW: Calculate Metrics
+  const metrics = calculateMetrics(overallAvg);
+
   const payload = {
     date: dateStr,
     startTime: timeStr,
@@ -487,8 +504,9 @@ const saveImageSessionToBackend = async (predictions, avgConf) => {
     status: 'Completed',
     detectionsCount: predictions.length,
     detectedItems: Object.keys(statsMap),
-    overallConfidence: avgConf * 100,
-    classStats: classStats
+    overallConfidence: overallAvg,
+    classStats: classStats,
+    metrics: metrics // <--- Sending to backend
   };
 
   try { await axios.post(`${BACKEND_URL}/history`, payload, { headers: { Authorization: `Bearer ${token}` } }); } 

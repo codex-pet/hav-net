@@ -56,13 +56,19 @@ const SessionSchema = new mongoose.Schema({
     status: { type: String, required: true },
     detectionsCount: { type: Number, default: 0 },
     detectedItems: [String], 
-    // NEW FIELDS
     overallConfidence: { type: Number, default: 0 }, 
     classStats: [{ 
         className: String, 
         count: Number, 
         avgConfidence: Number 
-    }]
+    }],
+    // NEW: Metrics Object
+    metrics: {
+        accuracy: { type: Number, default: 0 },
+        precision: { type: Number, default: 0 },
+        recall: { type: Number, default: 0 },
+        f1Score: { type: Number, default: 0 }
+    }
 });
 
 const User = mongoose.model('User', UserSchema);
@@ -119,10 +125,11 @@ app.post('/api/login', async (req, res) => {
 // 1. Save a new Session
 app.post('/api/history', authenticateToken, async (req, res) => {
     try {
+        // Destructure metrics from body
         const { 
             date, startTime, duration, status, 
             detectionsCount, detectedItems, 
-            overallConfidence, classStats 
+            overallConfidence, classStats, metrics 
         } = req.body;
 
         const newSession = new Session({
@@ -134,7 +141,8 @@ app.post('/api/history', authenticateToken, async (req, res) => {
             detectionsCount,
             detectedItems,
             overallConfidence,
-            classStats
+            classStats,
+            metrics // Save metrics
         });
 
         await newSession.save();
