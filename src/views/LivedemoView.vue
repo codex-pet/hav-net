@@ -1,12 +1,8 @@
 <template>
   <div class="live-demo-container">
-    <!-- Navigation Component -->
     <Navbar />
 
-    <!-- Main Content -->
     <main class="main-content">
-      
-      <!-- Header -->
       <div class="page-header">
         <h1>Live Demo & Limitations</h1>
         <p>Experience our YOLOv8-seg model via Cloud API. Accurate detection for Humans, Animals, and Vehicles.</p>
@@ -14,48 +10,58 @@
 
       <div class="split-layout">
         
-        <!-- LEFT COLUMN: Camera Feed -->
+        <!-- LEFT COLUMN: Camera/Image Section -->
         <div class="camera-section">
-          <h2>Real-Time Object Detection</h2>
+          <h2>{{ isImageMode ? 'Image Analysis' : 'Real-Time Object Detection' }}</h2>
           
-          <!-- Wrapper: Added dynamic class for CSS Fullscreen -->
           <div ref="wrapperRef" class="video-wrapper" :class="{ 'is-fullscreen': isFullscreen }">
             
-            <!-- Video & Canvas -->
-            <!-- Updated: :class includes dynamic mirroring based on camera direction -->
+            <!-- 1. VIDEO ELEMENT (Mirrored via CSS if 'user' mode) -->
             <video 
               ref="videoRef" 
               autoplay muted playsinline 
               class="video-feed" 
-              :class="{ hidden: !isCameraOn, 'is-mirrored': facingMode === 'user' }"
+              :class="{ hidden: !isCameraOn || isImageMode, 'is-mirrored': facingMode === 'user' }"
             ></video>
+
+            <!-- 2. IMAGE ELEMENT -->
+            <img 
+              v-if="isImageMode && uploadedImageSrc" 
+              ref="imageRef" 
+              :src="uploadedImageSrc" 
+              class="video-feed" 
+              alt="Uploaded analysis"
+            />
             
-            <!-- Canvas: Needs to match video mirroring logic -->
+            <!-- 3. CANVAS (Remove CSS mirroring class, handle in JS) -->
             <canvas 
               ref="canvasRef" 
               class="video-overlay" 
-              :class="{ hidden: !isCameraOn, 'is-mirrored': facingMode === 'user' }"
+              :class="{ hidden: (!isCameraOn && !isImageMode) }"
             ></canvas>
 
-            <!-- 1. AVG CONFIDENCE BADGE -->
-            <div v-if="isCameraOn && averageConfidence > 0" class="confidence-badge">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              <span>Avg Confidence: {{ Math.round(averageConfidence * 100) }}%</span>
+            <!-- STATUS BADGES CONTAINER (Bottom Right) -->
+            <div class="badge-container">
+              <!-- ANALYZING INDICATOR -->
+              <div v-if="(isCameraOn || isImageMode) && isProcessing" class="status-badge">
+                <div class="spinner"></div>
+                <span>{{ isImageMode ? 'Processing...' : 'Analyzing...' }}</span>
+              </div>
+
+              <!-- CONFIDENCE BADGE -->
+              <div v-if="(isCameraOn || isImageMode) && averageConfidence > 0" class="confidence-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span>Avg Confidence: {{ Math.round(averageConfidence * 100) }}%</span>
+              </div>
             </div>
 
-            <!-- 2. ANALYZING INDICATOR -->
-            <div v-if="isCameraOn && isProcessing" class="status-badge">
-              <div class="spinner"></div>
-              <span>Analyzing...</span>
-            </div>
-
-            <!-- 3. CLOSE FULLSCREEN BUTTON (Only visible in fullscreen) -->
+            <!-- CLOSE FULLSCREEN -->
             <button v-if="isFullscreen" @click="toggleFullscreen" class="close-fs-btn">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
             <!-- Placeholder State -->
-            <div v-if="!isCameraOn" class="camera-placeholder">
+            <div v-if="!isCameraOn && !isImageMode" class="camera-placeholder">
               <div class="icon-circle">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M2 2l20 20"/>
@@ -65,7 +71,7 @@
                 </svg>
               </div>
               <h3>Camera is off</h3>
-              <p>Grant permissions and click "Start Camera" to begin detection.</p>
+              <p>Start camera or upload an image to begin detection.</p>
             </div>
           </div>
 
@@ -74,36 +80,38 @@
           </p>
 
           <div class="controls">
-            <!-- Start Button -->
-            <button @click="handleStartClick" :disabled="isCameraOn" class="btn btn-primary">
+            <button @click="handleStartClick" :disabled="isCameraOn || isImageMode" class="btn btn-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
               Start Camera
             </button>
             
-            <!-- Stop Button -->
-            <button @click="stopCamera" :disabled="!isCameraOn" class="btn btn-secondary">
+            <button @click="stopCamera" :disabled="!isCameraOn && !isImageMode" class="btn btn-secondary">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
-              Stop
+              Stop / Reset
             </button>
 
-            <!-- NEW: Flip Camera Button -->
             <button @click="switchCamera" :disabled="!isCameraOn" class="btn btn-secondary" title="Flip Camera">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 6-8 6s-8 0-8-6 8-6 8-6 8 6 8 6z"/><circle cx="12" cy="10" r="3"/><path d="M12 22v-4"/><path d="M12 2v4"/></svg>
               <span class="mobile-hide">Flip</span>
             </button>
 
-             <!-- Fullscreen Button -->
-             <button @click="toggleFullscreen" :disabled="!isCameraOn" class="btn btn-secondary" title="Fullscreen">
+             <button @click="toggleFullscreen" :disabled="(!isCameraOn && !isImageMode)" class="btn btn-secondary" title="Fullscreen">
               <svg v-if="!isFullscreen" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
               <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3H5m14-3h-3v3M5 21v-3h3m11 3h-3v-3"/></svg>
             </button>
+
+             <button @click="triggerFileInput" :disabled="isCameraOn" class="btn btn-secondary" title="Upload Image">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span class="mobile-hide">Upload</span>
+            </button>
+            <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleImageUpload" />
+
           </div>
         </div>
 
         <!-- RIGHT COLUMN: Limitations -->
         <div class="limitations-section">
           <h2>Project Limitations</h2>
-          <!-- Limitation Cards -->
           <div class="limitation-card">
             <div class="icon-box blue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
             <div class="content"><h3>Limited Dataset Scope</h3><p>Trained specifically on Humans, common Animals, and Vehicles. Rare species may have lower confidence.</p></div>
@@ -124,9 +132,10 @@
       </div>
     </main>
     
-    <!-- === 1. INSTRUCTION MODAL === -->
+    <!-- Modals omitted for brevity, keep your existing instruction/login modals -->
     <div v-if="showInstructionModal" class="modal-overlay">
-      <div class="modal-content">
+       <!-- ... keep existing code ... -->
+       <div class="modal-content">
         <div class="modal-header">
           <h3>How to Use the Live Camera Feature</h3>
           <button @click="closeModal" class="close-icon-btn">
@@ -143,9 +152,9 @@
       </div>
     </div>
 
-    <!-- === 2. LOGIN REQUIRED MODAL === -->
     <div v-if="showLoginPrompt" class="modal-overlay">
-      <div class="modal-content">
+        <!-- ... keep existing code ... -->
+         <div class="modal-content">
         <div class="modal-header">
           <h3>Authentication Required</h3>
           <button @click="closeLoginPrompt" class="close-icon-btn">
@@ -168,46 +177,49 @@
       </div>
     </div>
 
-    <!-- New Footer Component -->
     <Footer />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios'; 
 import Navbar from '@/components/navbar.vue';
-import Footer from '@/components/footer.vue'; // Imported Footer
+import Footer from '@/components/footer.vue';
 
 const router = useRouter();
 
 // --- STATE ---
 const isCameraOn = ref(false);
+const isImageMode = ref(false);
+const uploadedImageSrc = ref(null);
 const isProcessing = ref(false); 
 const averageConfidence = ref(0); 
 const videoRef = ref(null);
 const canvasRef = ref(null);
-const wrapperRef = ref(null); 
+const wrapperRef = ref(null);
+const imageRef = ref(null);
+const fileInput = ref(null);
 const isLoggedIn = ref(false); 
-const isFullscreen = ref(false); // New Fullscreen State
-const facingMode = ref('user'); // 'user' = Front, 'environment' = Back
+const isFullscreen = ref(false); 
+const facingMode = ref('user');
 
 let intervalId = null;
 
-// --- SESSION RECORDING STATE ---
+// --- SESSION STATE ---
 const sessionStartTime = ref(null);
 const sessionTotalFrames = ref(0);
 const sessionStatsMap = ref({}); 
 
-// --- CONFIGURATION ---
+// --- CONFIG ---
 const API_KEY = import.meta.env.VITE_ROBOFLOW_PRIVATE_API_KEY; 
 const MODEL_ID = import.meta.env.VITE_ROBOFLOW_MODEL_ID;
 const MODEL_VERSION = import.meta.env.VITE_ROBOFLOW_VERSION;
 const MODEL_ENDPOINT = `https://detect.roboflow.com/${MODEL_ID}/${MODEL_VERSION}`;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
 
-// --- MODALS STATE ---
+// --- MODALS ---
 const showInstructionModal = ref(false);
 const showLoginPrompt = ref(false);
 
@@ -227,79 +239,113 @@ const handleStartClick = () => {
 
 const closeModal = () => { showInstructionModal.value = false; };
 const closeLoginPrompt = () => { showLoginPrompt.value = false; };
+const confirmStartCamera = () => { closeModal(); startCameraLogic(); };
+const proceedToLogin = () => { showLoginPrompt.value = false; router.push('/login'); };
 
-const confirmStartCamera = () => { 
-  closeModal(); 
-  startCameraLogic(); 
+// --- UPLOAD LOGIC ---
+const triggerFileInput = () => {
+  if (isLoggedIn.value) {
+    if(isCameraOn.value) stopCamera();
+    fileInput.value.click();
+  } else {
+    showLoginPrompt.value = true;
+  }
 };
 
-const proceedToLogin = () => {
-  showLoginPrompt.value = false;
-  router.push('/login');
+const handleImageUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  stopCamera();
+  isImageMode.value = true;
+  isProcessing.value = true;
+  averageConfidence.value = 0;
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    uploadedImageSrc.value = e.target.result;
+    await nextTick();
+    await detectUploadedImage(e.target.result);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = ''; 
 };
 
-// --- CAMERA FLIP LOGIC ---
+const detectUploadedImage = async (base64FullString) => {
+  try {
+    const imgEl = imageRef.value;
+    if (!imgEl || !canvasRef.value) return;
+
+    await new Promise(resolve => imgEl.onload = resolve);
+    canvasRef.value.width = imgEl.naturalWidth;
+    canvasRef.value.height = imgEl.naturalHeight;
+
+    const base64Data = base64FullString.split(',')[1];
+
+    const response = await axios({
+      method: 'POST',
+      url: MODEL_ENDPOINT,
+      params: { api_key: API_KEY },
+      data: base64Data,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const predictions = response.data.predictions;
+    if (predictions.length > 0) {
+      const total = predictions.reduce((acc, curr) => acc + curr.confidence, 0);
+      averageConfidence.value = total / predictions.length;
+    } else {
+      averageConfidence.value = 0;
+    }
+
+    drawPredictions(predictions, false);
+    await saveImageSessionToBackend(predictions, averageConfidence.value);
+
+  } catch (error) {
+    console.error("Image detection failed:", error);
+    alert("Failed to analyze image.");
+  } finally {
+    isProcessing.value = false;
+  }
+};
+
+// --- CAMERA FLIP ---
 const switchCamera = async () => {
   if (!isCameraOn.value) return;
-  
-  // Toggle Mode
   facingMode.value = facingMode.value === 'user' ? 'environment' : 'user';
-  
-  // Stop the stream (but keep session logic alive ideally, though here we restart stream)
-  // We need to stop tracks but keep isCameraOn true to prevent UI flash
   if (videoRef.value && videoRef.value.srcObject) {
     videoRef.value.srcObject.getTracks().forEach(track => track.stop());
   }
-  
-  // Restart with new mode
   await startCameraLogic();
 };
 
-// --- FULLSCREEN LOGIC (CSS BASED FOR MOBILE) ---
 const toggleFullscreen = () => {
-  // We toggle a CSS class instead of using the API
-  // This is much more stable for Mobile Web (iOS) to keep overlays
   isFullscreen.value = !isFullscreen.value;
-  
-  // Optional: If you still want to try native API on desktop
-  if (!isFullscreen.value && document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {});
-  }
 };
 
-// --- CAMERA LOGIC ---
+// --- START CAMERA ---
 const startCameraLogic = async () => {
+  isImageMode.value = false;
+  uploadedImageSrc.value = null;
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { 
-        facingMode: facingMode.value, 
-        width: { ideal: 1280 }, // Higher res for better back cam
-        height: { ideal: 720 } 
-      },
+      video: { facingMode: facingMode.value, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     });
     
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
-      
       videoRef.value.onloadeddata = async () => {
         try { await videoRef.value.play(); } catch (e) { console.error(e); }
-
+        
         const w = videoRef.value.videoWidth;
         const h = videoRef.value.videoHeight;
-        
-        // 1. Set Internal Resolution
         videoRef.value.width = w;
         videoRef.value.height = h;
         canvasRef.value.width = w;
         canvasRef.value.height = h;
 
-        // 2. Fix Aspect Ratio Visuals
-        if(wrapperRef.value && !isFullscreen.value) {
-           wrapperRef.value.style.aspectRatio = `${w}/${h}`;
-        }
-
-        // RESET SESSION DATA IF NEW SESSION
         if (!sessionStartTime.value) {
           sessionStartTime.value = new Date();
           sessionStatsMap.value = {}; 
@@ -307,31 +353,36 @@ const startCameraLogic = async () => {
         }
 
         isCameraOn.value = true;
-        
-        // Clear old interval if exists to prevent doubles
         if (intervalId) clearInterval(intervalId);
         intervalId = setInterval(captureAndDetect, 300); 
       };
     }
   } catch (err) {
     console.error("Camera denied:", err);
-    alert("Could not access camera. Please check permissions.");
+    alert("Could not access camera.");
   }
 };
 
+// --- STOP CAMERA / RESET (FIXED) ---
 const stopCamera = async () => {
   if (intervalId) clearInterval(intervalId);
   isProcessing.value = false;
-  isFullscreen.value = false; // Exit fs on stop
+  isFullscreen.value = false; 
   
   if (isCameraOn.value && sessionStartTime.value) {
     await saveSessionToBackend();
   }
 
+  // RESET ALL STATES SO START BUTTON WORKS
   isCameraOn.value = false;
+  isImageMode.value = false;       // FIX: Reset image mode
+  uploadedImageSrc.value = null;   // FIX: Clear image src
   averageConfidence.value = 0; 
-  sessionStartTime.value = null; // Reset session tracking
+  sessionStartTime.value = null;
   
+  // Clear file input so 'change' event fires even if same file selected
+  if (fileInput.value) fileInput.value.value = '';
+
   if (videoRef.value && videoRef.value.srcObject) {
     const tracks = videoRef.value.srcObject.getTracks();
     tracks.forEach(track => track.stop());
@@ -342,35 +393,40 @@ const stopCamera = async () => {
   if (ctx) ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 };
 
-// --- BACKEND SAVE FUNCTION (Unchanged) ---
+// --- HISTORY SAVING: VIDEO SESSION ---
 const saveSessionToBackend = async () => {
   const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
   if (!token) return;
 
   const endTime = new Date();
   const durationMs = endTime - sessionStartTime.value;
-  
   const seconds = Math.floor((durationMs / 1000) % 60);
   const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
   const durationStr = minutes > 0 ? `${minutes} min ${seconds} sec` : `${seconds} seconds`;
 
-  const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  // FIX: Force 'MMM DD, YYYY' format (e.g., Dec 11, 2025)
+  const dateStr = sessionStartTime.value.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
 
-  const rawStats = sessionStatsMap.value;
-  const detectedItems = Object.keys(rawStats);
+  // FIX: Force 'HH:MM AM/PM' format (No seconds)
+  const timeStr = sessionStartTime.value.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true 
+  });
+
+  const detectedItems = Object.keys(sessionStatsMap.value);
   let totalConfidenceSum = 0;
   let totalCountSum = 0;
   
   const classStats = detectedItems.map(key => {
-    const data = rawStats[key];
+    const data = sessionStatsMap.value[key];
     totalConfidenceSum += data.totalConf;
     totalCountSum += data.count;
-    return {
-      className: key,
-      count: data.count,
-      avgConfidence: (data.totalConf / data.count) * 100 
-    };
+    return { className: key, count: data.count, avgConfidence: (data.totalConf / data.count) * 100 };
   });
 
   const overallConfidence = totalCountSum > 0 ? (totalConfidenceSum / totalCountSum) * 100 : 0;
@@ -386,30 +442,69 @@ const saveSessionToBackend = async () => {
     classStats: classStats
   };
 
-  try {
-    await axios.post(`${BACKEND_URL}/history`, payload, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-  } catch (error) {
-    console.error("❌ Failed to save session:", error);
-  }
+  try { await axios.post(`${BACKEND_URL}/history`, payload, { headers: { Authorization: `Bearer ${token}` } }); } 
+  catch (error) { console.error("Failed to save session:", error); }
 };
 
-// --- API LOOP ---
+// --- HISTORY SAVING: SINGLE IMAGE ---
+const saveImageSessionToBackend = async (predictions, avgConf) => {
+  const token = localStorage.getItem('havnet_token') || localStorage.getItem('token');
+  if (!token) return;
+  
+  const now = new Date();
+  
+  // FIX: Force 'MMM DD, YYYY' format (e.g., Dec 11, 2025)
+  const dateStr = now.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+
+  // FIX: Force 'HH:MM AM/PM' format (No seconds)
+  const timeStr = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true 
+  });
+
+  const statsMap = {};
+  predictions.forEach(p => {
+    if (!statsMap[p.class]) statsMap[p.class] = { count: 0, totalConf: 0 };
+    statsMap[p.class].count++;
+    statsMap[p.class].totalConf += p.confidence;
+  });
+
+  const classStats = Object.keys(statsMap).map(key => ({
+    className: key,
+    count: statsMap[key].count,
+    avgConfidence: (statsMap[key].totalConf / statsMap[key].count) * 100
+  }));
+
+  const payload = {
+    date: dateStr,
+    startTime: timeStr,
+    duration: 'Image Upload',
+    status: 'Completed',
+    detectionsCount: predictions.length,
+    detectedItems: Object.keys(statsMap),
+    overallConfidence: avgConf * 100,
+    classStats: classStats
+  };
+
+  try { await axios.post(`${BACKEND_URL}/history`, payload, { headers: { Authorization: `Bearer ${token}` } }); } 
+  catch (error) { console.error("Failed to save image history:", error); }
+};
+
+// --- DETECTION LOOP ---
 const captureAndDetect = async () => {
   if (!isCameraOn.value || !videoRef.value || !canvasRef.value || isProcessing.value) return;
-
   isProcessing.value = true;
-
   try {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = videoRef.value.videoWidth;
     tempCanvas.height = videoRef.value.videoHeight;
     const tempCtx = tempCanvas.getContext('2d');
-    
-    // Draw raw frame (no mirroring here for the AI processing)
     tempCtx.drawImage(videoRef.value, 0, 0);
-
     const imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.6).split(',')[1]; 
 
     const response = await axios({
@@ -421,17 +516,13 @@ const captureAndDetect = async () => {
     });
 
     const predictions = response.data.predictions;
-    
     if (predictions.length > 0) {
       const total = predictions.reduce((acc, curr) => acc + curr.confidence, 0);
       averageConfidence.value = total / predictions.length;
       sessionTotalFrames.value += predictions.length;
-
       predictions.forEach(p => {
         const cls = p.class;
-        if (!sessionStatsMap.value[cls]) {
-          sessionStatsMap.value[cls] = { count: 0, totalConf: 0 };
-        }
+        if (!sessionStatsMap.value[cls]) sessionStatsMap.value[cls] = { count: 0, totalConf: 0 };
         sessionStatsMap.value[cls].count += 1;
         sessionStatsMap.value[cls].totalConf += p.confidence;
       });
@@ -439,54 +530,51 @@ const captureAndDetect = async () => {
       averageConfidence.value = 0;
     }
 
-    drawPredictions(predictions);
+    // Mirror if using front camera
+    drawPredictions(predictions, facingMode.value === 'user');
 
-  } catch (error) {
-    console.warn("API Error:", error);
-  } finally {
-    isProcessing.value = false;
-  }
+  } catch (error) { console.warn("API Error:", error); } 
+  finally { isProcessing.value = false; }
 };
 
-const drawPredictions = (predictions) => {
+// --- DRAWING LOGIC (Fixed Text Mirroring) ---
+const drawPredictions = (predictions, shouldMirror) => {
   if (!canvasRef.value) return;
   const ctx = canvasRef.value.getContext('2d');
   const w = canvasRef.value.width;
   const h = canvasRef.value.height;
 
+  // Clear canvas (which is NOT transformed in CSS anymore)
   ctx.clearRect(0, 0, w, h);
 
   predictions.forEach(pred => {
     const { class: classLabel, confidence, width: boxWidth, height: boxHeight, x: centerX, y: centerY } = pred;
-
-    const boxX = centerX - (boxWidth / 2);
-    const boxY = centerY - (boxHeight / 2);
-
-    // === CONDITIONAL MIRRORING FIX ===
-    // If facingMode is 'user', we mirrored CSS, so we must mirror coords.
-    // If 'environment' (back), CSS is normal, so coords are normal.
-    let drawX = boxX;
     
-    if (facingMode.value === 'user') {
-      drawX = w - boxX - boxWidth; // Mirror calc
+    // Calculate Box Coordinates
+    const boxY = centerY - (boxHeight / 2);
+    let boxX = centerX - (boxWidth / 2); // Standard X
+
+    // 1. MIRROR MATH: If mirroring, flip the X coordinate relative to canvas width
+    if (shouldMirror) {
+      boxX = w - boxX - boxWidth;
     }
 
     const color = getBoxColor(classLabel);
 
-    // 1. Draw Segmentation (Filled Mask)
+    // 2. Draw Segmentation
     if (pred.points && pred.points.length > 0) {
       ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.4)'); 
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
-      
       ctx.beginPath();
       
-      // Handle polygon points
-      const firstPtX = facingMode.value === 'user' ? w - pred.points[0].x : pred.points[0].x;
+      // Calculate first point
+      const firstPtX = shouldMirror ? w - pred.points[0].x : pred.points[0].x;
       ctx.moveTo(firstPtX, pred.points[0].y);
       
+      // Loop through rest
       for (let i = 1; i < pred.points.length; i++) {
-        const ptX = facingMode.value === 'user' ? w - pred.points[i].x : pred.points[i].x;
+        const ptX = shouldMirror ? w - pred.points[i].x : pred.points[i].x;
         ctx.lineTo(ptX, pred.points[i].y);
       }
       ctx.closePath();
@@ -494,22 +582,21 @@ const drawPredictions = (predictions) => {
       ctx.stroke(); 
     }
 
-    // 2. Draw Bounding Box
+    // 3. Draw Bounding Box (Using calculated boxX)
     ctx.strokeStyle = color;
     ctx.lineWidth = 4;
-    ctx.strokeRect(drawX, boxY, boxWidth, boxHeight);
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
-    // 3. Draw Label Background
+    // 4. Draw Label (Text draws left-to-right normally because canvas ctx isn't flipped)
     const text = `${classLabel} ${Math.round(confidence * 100)}%`;
     ctx.font = "bold 16px Inter";
     const tw = ctx.measureText(text).width;
     
     ctx.fillStyle = color;
-    ctx.fillRect(drawX, boxY - 30, tw + 20, 30); 
-
-    // 4. Draw Label Text
+    ctx.fillRect(boxX, boxY - 30, tw + 20, 30); 
+    
     ctx.fillStyle = "white";
-    ctx.fillText(text, drawX + 10, boxY - 9);
+    ctx.fillText(text, boxX + 10, boxY - 9);
   });
 };
 
@@ -521,13 +608,10 @@ const getBoxColor = (className) => {
   return 'rgb(239, 68, 68)'; 
 };
 
-onUnmounted(() => {
-  stopCamera();
-});
+onUnmounted(() => { stopCamera(); });
 </script>
 
 <style lang="scss" scoped>
-/* --- THEME VARIABLES --- */
 $bg-dark: #050b14;
 $bg-card: #0f172a;
 $bg-card-hover: #1e293b;
@@ -540,8 +624,7 @@ $text-muted: #94a3b8;
   color: $text-main;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
 }
 
 .main-content {
@@ -558,7 +641,6 @@ $text-muted: #94a3b8;
   display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px;
 }
 
-/* --- LEFT: CAMERA SECTION --- */
 .camera-section {
   h2 { font-size: 1.25rem; margin-bottom: 15px; color: $text-main; }
 
@@ -567,79 +649,62 @@ $text-muted: #94a3b8;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     transition: all 0.3s ease;
 
-    /* --- MOBILE FULLSCREEN OVERRIDE (CSS CLASS) --- */
+    /* Fullscreen Mode */
     &.is-fullscreen {
-      position: fixed; top: 0; left: 0; 
-      width: 100vw; height: 100vh; 
-      z-index: 9999; border-radius: 0; border: none; 
-      background: black;
-      
-      /* Force "Portrait" filling on mobile */
-      .video-feed, .video-overlay { 
-        object-fit: contain; /* Ensures the whole video is seen. Use 'cover' to fill entire screen but crop */
-      }
-      
-      /* On specific Mobile Portrait orientation, try to fill vertically */
-      @media (orientation: portrait) {
-         .video-feed, .video-overlay { object-fit: cover; }
-      }
-
-      .status-badge { top: 40px; right: 20px; }
-      .confidence-badge { top: 40px; left: 20px; }
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; border-radius: 0; border: none; background: black;
+      .video-feed, .video-overlay { object-fit: contain; }
+      @media (orientation: portrait) { .video-feed, .video-overlay { object-fit: cover; } }
+      .badge-container { bottom: 40px; right: 20px; } /* Adjust for mobile safe area */
     }
 
     .video-feed {
-      width: 100%; height: 100%; object-fit: cover;
-      /* Default: No mirror. We add .is-mirrored via Vue now */
-      transform: scaleX(1); 
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(1); 
       &.is-mirrored { transform: scaleX(-1); }
     }
 
     .video-overlay {
       width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;
-      /* Canvas must match video transform */
-      transform: scaleX(1);
-      &.is-mirrored { transform: scaleX(-1); }
+      /* Removed 'transform: scaleX' here to fix text mirroring */
     }
 
-    /* Close FS Button */
+    /* FS Close Button */
     .close-fs-btn {
       position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
       background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 50px; height: 50px;
-      display: flex; justify-content: center; align-items: center; cursor: pointer; color: white;
-      backdrop-filter: blur(5px); z-index: 10001;
+      display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; backdrop-filter: blur(5px); z-index: 10001;
       &:hover { background: rgba(255,255,255,0.3); }
     }
 
-    .status-badge {
-      position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
-      padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
-      font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none; z-index: 10;
-      .spinner { width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    /* Badge Container (Bottom Right) */
+    .badge-container {
+      position: absolute; bottom: 15px; right: 15px;
+      display: flex; flex-direction: column; gap: 10px;
+      align-items: flex-end; /* Align right */
+      z-index: 10;
     }
 
-    .confidence-badge {
-      position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+    /* Individual Badges */
+    .status-badge, .confidence-badge {
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
       padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;
-      font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none; z-index: 10;
-      .icon { color: $accent-blue; }
+      font-size: 0.85rem; color: #fff; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
     }
 
+    .status-badge .spinner { width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    .confidence-badge .icon { color: $accent-blue; }
+
+    /* Placeholder */
     .camera-placeholder {
       width: 100%; height: 100%; position: absolute; top: 0; left: 0;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(5,11,20,0.95));
-      background-size: cover;
       .icon-circle { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 50%; margin-bottom: 20px; color: $text-muted; }
       h3 { color: white; font-size: 1.2rem; margin-bottom: 8px; }
       p { color: $text-muted; font-size: 1rem; text-align: center; padding: 0 2rem; max-width: 400px; line-height: 1.5; }
     }
   }
 
-  .instruction-text {
-    margin-top: 15px; color: $text-muted; font-size: 0.85rem; text-align: center;
-    strong { color: $accent-blue; }
-  }
+  .instruction-text { margin-top: 15px; color: $text-muted; font-size: 0.85rem; text-align: center; strong { color: $accent-blue; } }
 
   .controls {
     margin-top: 25px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
@@ -649,18 +714,13 @@ $text-muted: #94a3b8;
       &.btn-primary { background-color: $accent-blue; color: white; &:hover:not(:disabled) { background-color: darken($accent-blue, 10%); } }
       &.btn-secondary { background-color: #334155; color: white; &:hover:not(:disabled) { background-color: #475569; } }
     }
-    @media (max-width: 400px) {
-       .mobile-hide { display: none; }
-    }
   }
 }
 
-/* --- RIGHT: LIMITATIONS SECTION (Unchanged) --- */
 .limitations-section {
   h2 { font-size: 1.25rem; margin-bottom: 15px; color: $text-main; }
   .limitation-card {
     background-color: $bg-card; border: 1px solid #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; gap: 15px;
-    transition: transform 0.2s;
     &:hover { background-color: $bg-card-hover; border-color: $accent-blue; }
     .icon-box { width: 40px; height: 40px; border-radius: 8px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;
       &.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
@@ -668,31 +728,22 @@ $text-muted: #94a3b8;
       &.blue-light { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; }
       &.blue-dark { background: rgba(30, 64, 175, 0.1); color: #60a5fa; }
     }
-    .content {
-      h3 { font-size: 1rem; color: #fff; margin-bottom: 5px; }
-      p { font-size: 0.85rem; color: $text-muted; line-height: 1.4; }
-    }
+    .content h3 { font-size: 1rem; color: #fff; margin-bottom: 5px; }
+    .content p { font-size: 0.85rem; color: $text-muted; line-height: 1.4; }
   }
 }
 
-/* --- MODAL SHARED STYLES --- */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
-  z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px;
-}
-.modal-content {
-  background: #0f172a; border: 1px solid #334155; width: 100%; max-width: 500px; border-radius: 16px; padding: 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease-out;
-}
-.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; h3 { color: white; font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.2; } .close-icon-btn { background: none; border: none; color: $text-muted; cursor: pointer; padding: 0; &:hover { color: white; } } }
-.modal-subtitle { color: $text-muted; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5; }
+/* Modal styles omitted for brevity */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+.modal-content { background: #0f172a; border: 1px solid #334155; width: 100%; max-width: 500px; border-radius: 16px; padding: 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease-out; }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; h3 { color: white; font-size: 1.5rem; font-weight: 700; margin: 0; } .close-icon-btn { background: none; border: none; color: $text-muted; cursor: pointer; } }
+.modal-subtitle { color: $text-muted; font-size: 0.95rem; margin-bottom: 25px; }
 .steps-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; }
-.step-item { display: flex; gap: 15px; align-items: flex-start; .step-number { width: 32px; height: 32px; background: rgba(59,130,246,0.2); color: $accent-blue; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 700; flex-shrink: 0; font-size: 0.9rem; } .step-text h4 { color: white; margin-bottom: 4px; font-size: 1rem; font-weight: 600; } .step-text p { color: $text-muted; font-size: 0.9rem; margin: 0; line-height: 1.4; } }
-.modal-action-btn { width: 100%; background: $accent-blue; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.2s; &:hover { background: darken($accent-blue, 10%); } }
+.step-item { display: flex; gap: 15px; align-items: flex-start; .step-number { width: 32px; height: 32px; background: rgba(59,130,246,0.2); color: $accent-blue; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 700; flex-shrink: 0; } .step-text h4 { color: white; margin-bottom: 4px; font-weight: 600; } .step-text p { color: $text-muted; font-size: 0.9rem; margin: 0; } }
+.modal-action-btn { width: 100%; background: $accent-blue; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; &:hover { background: darken($accent-blue, 10%); } }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 .hidden { display: none !important; }
-
-@media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } .mobile-hide { display: none; } }
 </style>
