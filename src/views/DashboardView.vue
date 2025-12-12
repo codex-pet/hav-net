@@ -176,7 +176,7 @@ import Navbar from '@/components/navbar.vue';
 import Footer from '@/components/footer.vue'; 
 
 const openDocs = () => {
-  const url = 'https://drive.google.com/drive/folders/13iVmLivEO-eSfPG1EIaT00ixjphyrrZu?fbclid=IwY2xjawOJUcJleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeIApEnYGDaZzHnCxFn0HDHeG8avFTGJUYPwuRbO9-wPE6G3VGwjgxORZXft8_aem_5o33MIgr5haprF0syClO8g';
+  const url = 'https://drive.google.com/drive/u/0/folders/1Q9abVkpidZ7MyFuvig8T5kjnXKFXWqxA';
   window.open(url, '_blank');
 };
 </script>
